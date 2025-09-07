@@ -1,0 +1,468 @@
+% ¤¤ Opsaetning af figur- og tabeltekst ¤¤ %
+\usepackage[font=footnotesize,labelfont={bf},format=hang]{caption}
+
+\usepackage{flafter}						% Soerger for at floats ikke optraeder i teksten foer deres reference
+\let\newfloat\relax 						% Justering mellem float-pakken og memoir
+\usepackage{float}
+% Muliggoer eksakt placering af floats, f.eks. \begin{figure}[H]
+
+\usepackage{changepage}
+
+%%%% ORDDELING %%%%
+\hyphenation{In-te-res-se e-le-ment}
+\hyphenation{dis-con-nec-ted}
+
+%Bibliografi og TOC
+\addto\captionsenglish{
+	\renewcommand{\contentsname}{Table of contents}	
+	\renewcommand{\bibname}{Bibliography}
+}
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
+
+%---------------------------------
+
+%Alt til definitioner, sætninger osv.
+\usepackage{framed}
+\definecolor{myGray}{HTML}{F9F9F9}
+
+\renewenvironment{leftbar}[4][\hsize]
+{
+    \def\FrameCommand
+    {
+        {\color{#2}\vrule width #4pt}
+        \hspace{-8pt}
+        \fboxsep=\FrameSep\colorbox{#3}
+    }
+    \MakeFramed{\hsize#1\advance\hsize-\width\FrameRestore}
+}
+{\endMakeFramed}
+
+\usepackage{array}
+\usepackage{makecell}
+
+\renewcommand\theadalign{bc}
+\renewcommand\theadfont{\bfseries}
+\renewcommand\theadgape{\Gape[4pt]}
+\renewcommand\cellgape{\Gape[4pt]}
+
+%----------
+
+
+\newtheoremstyle{beviss}% name of the style to be used
+  {10pt}% measure of space to leave above the theorem. E.g.: 3pt
+  {\topsep}% measure of space to leave below the theorem. E.g.: 3pt
+  {}% name of font to use in the body of the theorem
+  {0pt}% measure of space to indent
+  {\itshape}% name of head font
+  {:\\}% punctuation between head and body
+  { }% space after theorem head; " " = normal interword space
+  {\thmname{#1}}
+
+\theoremstyle{definition}
+\newtheorem{thm}{Theorem}[chapter]
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{propo}[thm]{Proposition}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{conj}[thm]{Conjecture} %Conjecture
+\newtheorem{exmp1}[thm]{Example}
+\AtEndEnvironment{exmp1}{\null\hfill$\square$}%
+\newtheorem{met}[thm]{Method}
+\newtheorem*{bema}{Remark}
+
+
+\theoremstyle{beviss}
+\newtheorem{bevis}{\textbf{Proof}}
+\AtEndEnvironment{bevis}{\null\hfill$\blacksquare$}%
+
+\theoremstyle{beviss}
+\newtheorem{modstrid}{Bevis}
+\AtEndEnvironment{modstrid}{\null\hfill\Lightning}%
+
+%----
+\newenvironment{exmp}[1]
+    {
+    \begin{exmp1}#1\\
+        }{
+    \end{exmp1}
+    }
+
+\newenvironment{theo}[1]
+    {\begin{leftbar}{black}{myGray}{3}
+    \begin{thm}#1\\
+        }{
+    \end{thm}
+    \end{leftbar}
+    }
+    
+\newenvironment{lemma}[1]
+    {\begin{leftbar}{black}{myGray}{3}
+    \begin{lem}#1\\
+        }{
+    \end{lem}
+    \end{leftbar}
+    }
+  
+\newenvironment{defi}[1]
+    {\begin{leftbar}{black}{myGray}{3}
+    \begin{defn}#1\\
+        }{
+    \end{defn}
+    \end{leftbar}
+    }
+
+\newenvironment{pro}[1]
+    {\begin{leftbar}{black}{myGray}{3}
+    \begin{propo}#1\\
+        }{
+    \end{propo}
+    \end{leftbar}
+    }
+    
+    \newenvironment{koro}[1]
+    {\begin{leftbar}{black}{myGray}{3}
+    \begin{cor}#1\\
+        }{
+    \end{cor}
+    \end{leftbar}
+    }
+    
+\newenvironment{ex}[1]
+    {\begin{leftbar}{gray}{white}{2}
+    \begin{exmp}#1\\
+        }{
+    \end{exmp}
+    \end{leftbar}
+    }
+
+\newenvironment{prop}[1]
+    {\begin{leftbar}{black}{myGray}{3}
+    \begin{propo}#1 \\
+        }{
+    \end{propo}
+    \end{leftbar}
+    }
+    
+\newenvironment{meto}[1]
+    {\begin{leftbar}{gray}{myGray}{3}
+    \begin{met}#1\\
+        }{
+    \end{met}
+    \end{leftbar}
+    }
+
+\usepackage{enumitem} 
+
+\usepackage{caption}
+\usepackage{subcaption}
+\renewcommand\qedsymbol{$\blacksquare$}
+%------------------------------------------------
+
+% %Appendix
+\usepackage[toc,page]{appendix}
+
+%Change name in TOC
+% \renewcommand\appendixtocname{Appendikser}
+
+%Change Appendix in the language package to be danish
+% \addto\captionsdanish{%
+%   \renewcommand\appendixname{Appendikser}
+%   \renewcommand\appendixpagename{Appendikser}
+% } 
+
+%Restriction of operator
+
+\usepackage{emptypage}
+
+
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{AAUblue1}{RGB}{ 33, 26, 82}
+\definecolor{AAUblue2}{RGB}{ 89, 79,191}
+\definecolor{AAUgrey1}{RGB}{ 84, 97,110}
+\definecolor{AAUgrey2}{RGB}{104,119,132}
+\definecolor{AAUgrey3}{RGB}{162,172,182}
+\definecolor{AAUgrey4}{RGB}{222,223,226}
+\definecolor{AAUgreen}{RGB}{157,187, 29}
+\definecolor{AAUteal} {RGB}{ 94,150,149}
+\definecolor{AAUred}  {RGB}{223,103, 82}
+
+\lstdefinestyle{custompy}{
+  belowcaptionskip=\baselineskip,
+  breaklines=true,
+  language=Python,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{AAUblue1},
+  numberstyle=\tiny\color{codegray},
+  commentstyle=\itshape\color{AAUgrey3},
+  identifierstyle=\color{AAUblue2},
+  frame = single,
+  stringstyle=\color{AAUteal},
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=15pt,                  
+    showspaces=false,                
+    showtabs=false,                  
+    tabsize=2
+}
+
+
+\lstset{language=Python,style=custompy,captionpos=b}
+\renewcommand{\lstlistingname}{Kildekode}
+\renewcommand{\lstlistlistingname}{Kildekode}
+
+
+
+%Commands to make life easier
+\newcommand{\tw}{\textcolor{white}}
+\newcommand{\phm}{\phantom{-}}
+
+\newcommand\Tophat[1]{\hat{#1}}
+\newcommand{\bigO}{\mathcal{O}}
+\newcommand{\ud}{\,\mathrm{d}x}
+\DeclareMathSymbol{*}{\mathbin}{symbols}{"01}
+
+\renewcommand{\a}{\alpha}
+\renewcommand{\b}{\beta}
+\renewcommand{\gets}{:=}
+\newcommand{\y}{\gamma}
+%\newcommand{*}{\cdot}
+\def\*{\cdot}
+\newcommand{\BO}{\mathcal{O}}
+
+%shortcuts
+\newcommand{\trk}{\nabla} %Laver trekant til gradientvektor
+\newcommand{\m}{\cdot} %Hurtigt gangetegn
+\newcommand{\df}{\frac{\partial f}{\partial x}} %Differentiation df/dx
+\newcommand{\dx}{\frac{d x}{d t}}
+\newcommand{\disneyd}{\mathcal{D}}
+\newcommand{\Lag}{\mathcal{L}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\ML}{\mathbb{L}}
+\newcommand{\K}{\mathbb{K}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\PP}{\text{P}}
+\newcommand\norm[1]{\left\lVert#1\right\rVert} % Norm
+\newcommand\fnorm[1]{\left\lVert#1\right\rVert_F} % Frobeniusnorm
+\newcommand{\NA}{\mathcal{N}_A} % Løsningsrum 
+\newcommand{\epsi}{\varepsilon}
+\newcommand{\E}{\mathcal{E}}
+\newcommand{\M}{\mathcal{M}}
+\newcommand\ip[1]{\left\langle#1\right\rangle} 
+\newcommand{\x}{\bm{x}}
+\renewcommand{\y}{\bm{y}}
+\renewcommand{\v}{\bm{v}}
+\newcommand{\w}{\bm{w}}
+\renewcommand{\u}{\bm{u}}
+\newcommand{\T}{\mathcal{T}}
+\newcommand{\A}{\mathcal{A}}
+\renewcommand{\b}{\bm{b}}
+\newcommand{\0}{\bm{0}}
+\renewcommand{\t}{\bm{t}}
+\newcommand{\Sym}{\text{Sym}}
+\newcommand{\Isom}{\text{Isom}}
+\newcommand{\om}{\bm{\omega }}
+\newcommand{\Dt}{\frac{\mathrm{d}x}{\mathrm{d}t}(t)}
+\newcommand{\D}{\frac{\mathrm{d}x}{\mathrm{d}t}}
+\newcommand{\Dx}{\frac{\mathrm{d}X}{\mathrm{d}t}}
+\newcommand{\DP}{\frac{\mathrm{d}\Phi}{\mathrm{d}t}}
+\newcommand{\Dp}{\frac{\mathrm{d}\phi}{\mathrm{d}t}}
+\newcommand{\Dif}[1]{\frac{\mathrm{d} #1}{\mathrm{d}t}}
+\newcommand{\e}{\text{e}}
+\newcommand{\tr}[1]{\text{tr}(#1)}
+\newcommand{\cp}{\mathcal{P}}
+
+%Vectors
+\newcommand{\vecto}[2]{\begin{bmatrix}#1\\#2\end{bmatrix}}
+\newcommand{\vectre}[3]{\begin{bmatrix}#1\\#2\\#3\end{bmatrix}}
+
+%Prikprodukt
+\makeatletter
+\newcommand*\prik{\mathpalette\prik@{.5}}
+\newcommand*\prik@[2]{\mathbin{\vcenter{\hbox{\scalebox{#2}{$\m@th#1\bullet$}}}}}
+\makeatother
+
+%Varians
+\newcommand{\var}{\text{var}}
+\newcommand{\Var}[1]{\text{Var}\left[{#1}\right]}
+\newcommand{\Cov}[1]{\text{Cov}\left[{#1}\right]}
+\newcommand{\Ex}[1]{\text{E}\left[{#1}\right]}
+%\newcommand{\Var}{\text{Var}}
+%\newcommand{\ip[2]}{\langle \text{} \rangle}
+\newcommand{\xt}{\widetilde{x}_{\tau}^\ast}
+\newcommand{\xu}{x_{\tau}^\ast}
+\newcommand\ti[1]{\widetilde#1} 
+\newcommand{\xtan}
+{\widetilde{x}^{\phantom{|}TAN}}
+\def\checkmark{\tikz\fill[scale=0.4](0,.35) -- (.25,0) -- (1,.7) -- (.25,.15) -- cycle;} 
+	
+\newcommand{\indep}{\perp \!\!\! \perp}
+
+\newcommand{\rank}{\text{rank}}
+
+
+\newcommand\independent{\protect\mathpalette{\protect\independenT}{\perp}}
+\def\independenT#1#2{\mathrel{\rlap{$#1#2$}\mkern4mu{#1#2}}}
+
+\usepackage{ marvosym }
+\usepackage{tabularx}
+
+
+
+\usepackage{listings}
+\definecolor{codegreen}{rgb}{0.76, 0.23, 0.13}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.33, 0.42, 0.18}
+\definecolor{backcolour}{rgb}{0.94, 0.92, 0.84}
+
+
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    stringstyle=\color{codepurple},
+    commentstyle=\color{codegreen},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+
+
+
+
+
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+% \documentclass[
+% ]{article}
+% \usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+
+% \usepackage{parskip}
+% \setlength{\parindent}{1.5em} % Adjust the indentation value as needed
+
+
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+% \makeatletter
+% \@ifundefined{KOMAClassName}{% if non-KOMA class
+%   \IfFileExists{parskip.sty}{%
+%     \usepackage{parskip}
+%   }{% else
+%     \setlength{\parindent}{0pt}
+%     \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+% }{% if KOMA class
+%   \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Data processing},
+  pdfauthor={Group 5.213A},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+% Define the grey color for comments
+\definecolor{mycommentcolor}{gray}{0.5}  % 0.5 is a medium grey
+
+% Redefine \Comment to use grey color and italics
+\renewcommand{\Comment}[1]{\hfill\textcolor{mycommentcolor}{\textit{\(\triangleright\) #1}}}
