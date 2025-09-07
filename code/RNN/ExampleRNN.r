@@ -283,3 +283,5 @@ Plot_RNN_Extra <- ggplot() +
 pdf("fig/img/RNN/RNN_Example_Extra.pdf", width=10, height=6)
 Plot_RNN_Extra
 dev.off()
+
+
