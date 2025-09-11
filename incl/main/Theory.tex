@@ -1,13 +1,61 @@
 \chapter{Transformer}
+Transformer models represent a fundamental advancement in the processing of sequential data, offering a highly parallelizable and effective alternative to traditional sequence models. These models are composed of multiple layers of attention and feed-forward mechanisms, enabling them to capture both local and global dependencies within sequences. The overall structure of a transformer model is illustrated in Figure (ref). While transformers have found broad application in domains such as natural language processing, speech recognition, and computer vision, this work specifically focuses on their adaptation for biological sequence analysis.
 
+To provide a structured introduction, this chapter begins with a review of recurrent neural networks (RNNs), which formed the basis for sequence-to-sequence learning via encoder–decoder frameworks. Their limitations, particularly in handling long-range dependencies, motivate the transition to attention-based architectures. Subsequently, the chapter presents a stepwise development of the transformer model, followed by an explanation on how this general framework can be modified to accommodate the unique properties of biological sequences.
+
+In addition, the chapter outlines training methodologies designed to optimize performance in this domain, considering aspects such as regularization, data augmentation, and optimization strategies. Finally, the chapter concludes with a detailed examination of evaluation metrics relevant to transformer-based models, highlighting criteria necessary for assessing predictive accuracy, generalization, and biological interpretability.
 
 
 \section{Recurrent Neural Network and Backpropagation}
+% A Recurrent Neural Network (RNN) is a type of neural network designed for sequential data, where each output depends on both the current input and previous inputs. Consider a dataset of $N \in \mathbb{N}$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ contains $n \in \mathbb{N}$ observations $x_i = \{x_{i,1}, x_{i,2}, \dots, x_{i,n}\}$ with corresponding labels $y_i = \{y_{i,1}, y_{i,2}, \dots, y_{i,n}\}$. For an RNN 
 
-A recurrent neural network (RNN) is a type of neural network designed to handle sequential data by generating outputs based on previous inputs, meaning it can retain information as it processes earlier data points in a sequence. A visual example of an RNN can be seen in Figure \ref{fig:example RNN}.
+
+
+
+
+% A Recurrent Neural Network (RNN) is a type of neural network designed for sequential data, where each output depends on both the current input and previous inputs. More specifically an RNN passes current and past information through a hidden state, $h_t$, described as
+% \begin{align*}
+%     h_t = f(W_{xh} x_{t} + W_{hh} h_{t-1} + b_h),
+% \end{align*}
+% where $f$ is a nonlinear function, $W_{xh}$ is a  and $h_{t-1}$ is the previous hidden state. Since $h_t$ is defined recursively in terms of $h_{t-1}$, it implicitly contains information from all earlier inputs $\{x_1, \dots, x_{t-1}\}$. 
+
+% An RNN with a hidden state is defined as
+% \begin{align*}
+%     4=4
+% \end{align*}
+
+A recurrent neural network (RNN) is designed to process sequential data by a hidden state that contains information from previous time steps. Consider a dataset of $N \in \N$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ consists of $n \in \mathbb{N}$ observations 
+\begin{align*}
+x_i = \{x_{i,1}, x_{i,2}, \dots, x_{i,n}\} \in \mathbb{R}^{d_x}
+\end{align*}
+with corresponding labels 
+\begin{align*}
+y_i = \{y_{i,1}, y_{i,2}, \dots, y_{i,n}\} \in \mathbb{R}^{d_y}.
+\end{align*}
+
+For each sequence $i$, the RNN uses a sequence of hidden states $h_i = \{h_{i,1}, h_{i,2}, \dots, h_{i,n}\} \in \mathbb{R}^{d_h}$, which evolve according to the recurrence relation:
+
+\begin{align*}
+h_{i,0} &= 0, \\
+h_{i,t} &= \sigma_h \big( W_h x_{i,t} + U_h h_{i,t-1} + b_h \big), \quad t = 1, 2, \dots, n, \\
+y_{i,t} &= \sigma_y \big( W_y h_{i,t} + b_y \big), \quad t = 1, 2, \dots, n,
+\end{align*}
+
+where:  
+\begin{align*}
+& W_h \in \mathbb{R}^{d_h \times d_x}, \quad U_h \in \mathbb{R}^{d_h \times d_h}, \quad b_h \in \mathbb{R}^{d_h}, \\
+& W_y \in \mathbb{R}^{d_y \times d_h}, \quad b_y \in \mathbb{R}^{d_y}, \\
+& \sigma_h \text{ is a hidden state nonlinearity (e.g., $\tanh$ or ReLU)}, \\
+& \sigma_y \text{ is an output nonlinearity (e.g., softmax for classification)}.
+\end{align*}
+
+In this formulation, the hidden state $h_{i,t}$ acts as a \textbf{summary of all previous inputs} $\{x_{i,1}, \dots, x_{i,t}\}$, enabling the RNN to capture temporal dependencies in the sequence.
+
+
+
 \begin{figure}
     \centering
-    \includegraphics[width=0.8\linewidth]{fig/img/RNN/RNN_Example_Extra.pdf}
+    \includegraphics[width=0.8\linewidth]{fig/img/RNN/RNN_Example_Extra2.pdf}
     \caption{Example of an RNN}
     \label{fig:example RNN}
 \end{figure}
