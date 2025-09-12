@@ -24,7 +24,7 @@ In addition, the chapter outlines training methodologies designed to optimize pe
 %     4=4
 % \end{align*}
 
-A recurrent neural network (RNN) is designed to process sequential data by a hidden state that contains information from previous time steps. Consider a dataset of $N \in \N$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ consists of $n \in \mathbb{N}$ observations 
+A recurrent neural network (RNN) processes sequential data by maintaining a hidden state, which stores information from both the current input and previous time steps. Consider a dataset of $N \in \N$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ consists of $n \in \mathbb{N}$ observations 
 \begin{align*}
 x_i = \{x_{i,1}, x_{i,2}, \dots, x_{i,n}\} \in \mathbb{R}^{d_x}
 \end{align*}
@@ -55,7 +55,7 @@ In this formulation, the hidden state $h_{i,t}$ acts as a \textbf{summary of all
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.8\linewidth]{fig/img/RNN/RNN_Example_Extra2.pdf}
+    \includegraphics[width=0.8\linewidth]{fig/img/RNN/RNN_Example.pdf}
     \caption{Example of an RNN}
     \label{fig:example RNN}
 \end{figure}
