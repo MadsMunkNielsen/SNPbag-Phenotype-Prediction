@@ -7,52 +7,23 @@ In addition, the chapter outlines training methodologies designed to optimize pe
 
 
 \section{Recurrent Neural Network and Backpropagation}
-% A Recurrent Neural Network (RNN) is a type of neural network designed for sequential data, where each output depends on both the current input and previous inputs. Consider a dataset of $N \in \mathbb{N}$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ contains $n \in \mathbb{N}$ observations $x_i = \{x_{i,1}, x_{i,2}, \dots, x_{i,n}\}$ with corresponding labels $y_i = \{y_{i,1}, y_{i,2}, \dots, y_{i,n}\}$. For an RNN 
-
-
-
-
-
-% A Recurrent Neural Network (RNN) is a type of neural network designed for sequential data, where each output depends on both the current input and previous inputs. More specifically an RNN passes current and past information through a hidden state, $h_t$, described as
-% \begin{align*}
-%     h_t = f(W_{xh} x_{t} + W_{hh} h_{t-1} + b_h),
-% \end{align*}
-% where $f$ is a nonlinear function, $W_{xh}$ is a  and $h_{t-1}$ is the previous hidden state. Since $h_t$ is defined recursively in terms of $h_{t-1}$, it implicitly contains information from all earlier inputs $\{x_1, \dots, x_{t-1}\}$. 
-
-% An RNN with a hidden state is defined as
-% \begin{align*}
-%     4=4
-% \end{align*}
-
-A recurrent neural network (RNN) processes sequential data by maintaining a hidden state, which stores information from both the current input and previous time steps. Consider a dataset of $N \in \N$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ consists of $n \in \mathbb{N}$ observations 
+Consider a dataset consisting of $N \in \mathbb{N}$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ contains $n \in \mathbb{N}$ observations, $x_i = \{x_{i,1}, x_{i,2}, \dots, x_{i,n}\}$, and $q \in \N$ response variables, $y_i = \{y_{i,1}, y_{i,2}, \dots, y_{i,q}\}$. Collectively, all observation and response sequences yield the matrices $X = \{x_1, x_2, \dots, x_N \} \in \R^{N \times n}$ and $Y= \{y_1, y_2, \dots, y_N \} \in \R^{N \times q}$, respectively. A recurrent neural network (RNN) processes such sequences using hidden states to produce estimates based on the current and previous inputs, see Figure \ref{fig:example RNN}. The hidden state at each observation is defined recursively as
 \begin{align*}
-x_i = \{x_{i,1}, x_{i,2}, \dots, x_{i,n}\} \in \mathbb{R}^{d_x}
+    h_{n} = f_\theta(h_{n-1}, x_n),
 \end{align*}
-with corresponding labels 
+where $h_n \in \R^p$ denotes the hidden state at observation $n$. The function $f_\theta : \R^{p} \times \R^N \to \R^{p}$ is an observation-invariant activation function parameterized by $\theta = \{ W, U, b_h\}$, where $W \in \R^{p\times p}$ is an invariant weight matrix between the hidden states, $U \in \R^{p \times N}$ is an invariant weight matrix between the inputs and the state, and $b_h \in \R^p$ is the bias between the states. Generally, the activation function used, is the hyperbolic tangent, at each entry of the vector. Thus, the hidden state at each observation can be described as
 \begin{align*}
-y_i = \{y_{i,1}, y_{i,2}, \dots, y_{i,n}\} \in \mathbb{R}^{d_y}.
+    h_n = \tanh(Wh_{n-1} + UX_{n-1} + b_h).
 \end{align*}
-
-For each sequence $i$, the RNN uses a sequence of hidden states $h_i = \{h_{i,1}, h_{i,2}, \dots, h_{i,n}\} \in \mathbb{R}^{d_h}$, which evolve according to the recurrence relation:
-
+Since $\tanh: \R \to (-1, 1)$, the resulting hidden state for the $n$'th observation $h_n \in (-1, 1)^p$. From each of the hidden states, sequential estimates can be made
 \begin{align*}
-h_{i,0} &= 0, \\
-h_{i,t} &= \sigma_h \big( W_h x_{i,t} + U_h h_{i,t-1} + b_h \big), \quad t = 1, 2, \dots, n, \\
-y_{i,t} &= \sigma_y \big( W_y h_{i,t} + b_y \big), \quad t = 1, 2, \dots, n,
+    \hat{y}_n = g_\Theta(h_n),
 \end{align*}
-
-where:  
+where $g_\Theta :\R^p \to \R^q$ is an invariant activation function parameterized by $\Theta = \{V, b_y\}$, where $V \in \R^{q \times p}$ is a weight matrix between the hidden state and the output, and $b_y \in \R^q$ is a bias term. If the outputs should be represented as a probability distribution, the activation function, $g_\Theta (\cdot)$, is often chosen as the softmax function. Thus, the estimates for each of the $n$ inputs can be described as
 \begin{align*}
-& W_h \in \mathbb{R}^{d_h \times d_x}, \quad U_h \in \mathbb{R}^{d_h \times d_h}, \quad b_h \in \mathbb{R}^{d_h}, \\
-& W_y \in \mathbb{R}^{d_y \times d_h}, \quad b_y \in \mathbb{R}^{d_y}, \\
-& \sigma_h \text{ is a hidden state nonlinearity (e.g., $\tanh$ or ReLU)}, \\
-& \sigma_y \text{ is an output nonlinearity (e.g., softmax for classification)}.
+    \hat{y}_{n,j} = \text{softmax}_\Theta\left(h_n \right)= \frac{\exp((Vh_{n} + b_y)_j)}{\sum^q_{k=1}\exp((Vh_{n} + b_y)_k)},
 \end{align*}
-
-In this formulation, the hidden state $h_{i,t}$ acts as a \textbf{summary of all previous inputs} $\{x_{i,1}, \dots, x_{i,t}\}$, enabling the RNN to capture temporal dependencies in the sequence.
-
-
-
+where $\hat{y}_{n,j}$ denotes the j'th estimate for the n'th input in the sequence. 
 \begin{figure}
     \centering
     \includegraphics[width=0.8\linewidth]{fig/img/RNN/RNN_Example.pdf}
