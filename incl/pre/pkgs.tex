@@ -26,6 +26,17 @@
 \usepackage{caption}               % customisation of captions
 \usepackage{subcaption}            % for grouping figures together
 \usepackage{tikz}                  % drawing vector graphics
+\usepackage{circuitikz}
+\usepackage{xcolor}
+\definecolor{baseA}{HTML}{1B9E77}
+\definecolor{baseT}{HTML}{D95F02}
+\definecolor{baseG}{HTML}{7570B3}
+\definecolor{baseC}{HTML}{E7298A}
+\newcommand{\baseA}{\textcolor{baseA}{A}}
+\newcommand{\baseT}{\textcolor{baseT}{T}}
+\newcommand{\baseG}{\textcolor{baseG}{G}}
+\newcommand{\baseC}{\textcolor{baseC}{C}}
+
 \usepackage[chapter]{algorithm}    % algorithm floats
 \usepackage[noend]{algpseudocode}  % pseudocode listings
 \usepackage{listings}              % source code listings
@@ -48,7 +59,14 @@
 % http://www.tug.dk/FontCatalogue/
 %\usepackage{fourier}               % Adobe Utopia base font
 \usepackage{DejaVuSansMono}        % DejaVu Sans Mono for monospace text
-
+\usepackage{caption}
+\captionsetup[figure]{
+  justification=raggedright,   % aligns caption with left margin
+  singlelinecheck=false,       % ensures one-line captions also align left
+  labelfont=bf,                % makes "Figure 2.1" bold
+  format=plain,                % normal paragraph style
+  indention=0pt                % no extra indent before the text
+}
 % Bundled 3rd party package ----------------------------------------------------
 % The aautitlepage package consists of modified code from a third party.
 % See incl/pre/ext/aautitlepage.sty for details

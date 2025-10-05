@@ -1,33 +1,140 @@
-\chapter{Transformer}
-Transformer models represent a fundamental advancement in the processing of sequential data, offering a highly parallelizable and effective alternative to traditional sequence models. These models are composed of multiple layers of attention and feed-forward mechanisms, enabling them to capture both local and global dependencies within sequences. The overall structure of a transformer model is illustrated in Figure (ref). While transformers have found broad application in domains such as natural language processing, speech recognition, and computer vision, this work specifically focuses on their adaptation for biological sequence analysis.
+\chapter{Bidirectional Encoder Representations from Transformers}
+This chapter focuses on the architecture of DNABERT, a pre-trained Bidirectional Encoder Representations from Transformers model designed for genomic sequences, see Figure \ref{fig: architecture DNAbert}. DNABERT extends the original BERT framework first developed for natural language processing by replacing words with DNA k-mers, enabling the model to learn representations of nucleotide sequences, that can be used for predictive genomic tasks.
 
-To provide a structured introduction, this chapter begins with a review of recurrent neural networks (RNNs), which formed the basis for sequence-to-sequence learning via encoder–decoder frameworks. Their limitations, particularly in handling long-range dependencies, motivate the transition to attention-based architectures. Subsequently, the chapter presents a stepwise development of the transformer model, followed by an explanation on how this general framework can be modified to accommodate the unique properties of biological sequences.
+Initially, the chapter begins by describing how raw DNA sequences are divided into overlapping k-mers, which serve as the fundamental input units. It then explains the masking procedure used during pre-training, where a subset of k-mers is hidden to force the model to infer them from surrounding context. Next, the construction of token, positional, and segment embeddings is presented. These embeddings encode the k-mers before being passed into the transformer architecture, which is composed of stacked sublayers including multi-head self-attention, feed-forward networks, and layer normalization. The resulting hidden states are then examined, both in their role for sequence-level classification (predicting global properties of entire DNA sequences) and for token-level classification (recovering masked k-mers during pre-training).
 
-In addition, the chapter outlines training methodologies designed to optimize performance in this domain, considering aspects such as regularization, data augmentation, and optimization strategies. Finally, the chapter concludes with a detailed examination of evaluation metrics relevant to transformer-based models, highlighting criteria necessary for assessing predictive accuracy, generalization, and biological interpretability.
+The chapter then examins the training process. The pre-training phase is outlined, showing how the model learns generalizable representations of DNA sequences. The chapter also details how a pre-trained DNABERT can be fine-tuned for specific predictive tasks.
+
+Finally, the chapter introduces the evaluation metrics used to assess model performance. Standard metrics such as accuracy, precision, recall, F1-score, and ROC curves are described, along with their relevance for both sequence-level and token-level tasks.
+\newpage
+\begin{figure}[H]
+\centering
+\resizebox{1\textwidth}{!}{%
+\begin{circuitikz}
+\tikzstyle{every node}=[font=\large]
+\draw (8.25,12) to[short] (8.25,12);
+\draw [ fill={rgb,255:red,224; green,224; blue,224} , line width=0.8pt , rounded corners = 20.4] (-6.75,-23.25) rectangle (-0.25,-26.5);
+\draw [ fill={rgb,255:red,240; green,240; blue,240} , line width=0.8pt , rounded corners = 111.0] (15,-3) rectangle (0,-19.25);
 
 
-\section{Recurrent Neural Network and Backpropagation}
-Consider a dataset consisting of $N \in \mathbb{N}$ sequences. Each sequence $i \in \{1, 2, \dots, N\}$ contains $n \in \mathbb{N}$ observations, $x_i = \{x_{i,1}, x_{i,2}, \dots, x_{i,n}\}$, and $q \in \N$ response variables, $y_i = \{y_{i,1}, y_{i,2}, \dots, y_{i,q}\}$. Collectively, all observation and response sequences yield the matrices $X = \{x_1, x_2, \dots, x_N \} \in \R^{N \times n}$ and $Y= \{y_1, y_2, \dots, y_N \} \in \R^{N \times q}$, respectively. A recurrent neural network (RNN) processes such sequences using hidden states to produce estimates based on the current and previous inputs, see Figure \ref{fig:example RNN}. The hidden state at each observation is defined recursively as
-\begin{align*}
-    h_{n} = f_\theta(h_{n-1}, x_n),
-\end{align*}
-where $h_n \in \R^p$ denotes the hidden state at observation $n$. The function $f_\theta : \R^{p} \times \R^N \to \R^{p}$ is an observation-invariant activation function parameterized by $\theta = \{ W, U, b_h\}$, where $W \in \R^{p\times p}$ is an invariant weight matrix between the hidden states, $U \in \R^{p \times N}$ is an invariant weight matrix between the inputs and the state, and $b_h \in \R^p$ is the bias between the states. Generally, the activation function used, is the hyperbolic tangent, at each entry of the vector. Thus, the hidden state at each observation can be described as
-\begin{align*}
-    h_n = \tanh(Wh_{n-1} + UX_{n-1} + b_h).
-\end{align*}
-Since $\tanh: \R \to (-1, 1)$, the resulting hidden state for the $n$'th observation $h_n \in (-1, 1)^p$. From each of the hidden states, sequential estimates can be made
-\begin{align*}
-    \hat{y}_n = g_\Theta(h_n),
-\end{align*}
-where $g_\Theta :\R^p \to \R^q$ is an invariant activation function parameterized by $\Theta = \{V, b_y\}$, where $V \in \R^{q \times p}$ is a weight matrix between the hidden state and the output, and $b_y \in \R^q$ is a bias term. If the outputs should be represented as a probability distribution, the activation function, $g_\Theta (\cdot)$, is often chosen as the softmax function. Thus, the estimates for each of the $n$ inputs can be described as
-\begin{align*}
-    \hat{y}_{n,j} = \text{softmax}_\Theta\left(h_n \right)= \frac{\exp((Vh_{n} + b_y)_j)}{\sum^q_{k=1}\exp((Vh_{n} + b_y)_k)},
-\end{align*}
-where $\hat{y}_{n,j}$ denotes the j'th estimate for the n'th input in the sequence. 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.8\linewidth]{fig/img/RNN/RNN_Example.pdf}
-    \caption{Example of an RNN}
-    \label{fig:example RNN}
+\node [font=\LARGE] at (-8.75,9) {\textbf{Original Sequence}};
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,4) -- (7.5,3.25);
+\node [font=\LARGE] at (-8.5,6) {\textbf{Input Sequence}};
+\node [font=\LARGE] at (-1,7.5) {};
+\node [font=\LARGE] at (-1,7.5) {};
+\node [font=\LARGE] at (-1,7.5) {};
+\node [font=\LARGE] at (0,7.5) {};
+\node [font=\LARGE] at (-0.75,7) {};
+\node [font=\LARGE] at (-0.5,7) {};
+\node [font=\LARGE] at (-0.5,7) {};
+\node [font=\LARGE] at (-0.5,7) {};
+\node [font=\LARGE] at (-0.5,7) {};
+\node [font=\LARGE] at (-0.25,7.25) {};
+
+\node [font=\LARGE] at (-8.75,2.25) {\textbf{Token Embedding}};
+\node [font=\LARGE] at (-0.75,5.25) {};
+\node [font=\LARGE] at (-0.75,5.25) {};
+\node [font=\LARGE] at (-0.75,5.25) {};
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-2) -- (7.5,-2.75);
+\node [font=\LARGE] at (-9.25,0.25) {\textbf{Positional Embedding}};
+\node [font=\LARGE] at (-8.75,-1.5) {\textbf{Input Embedding}};
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-5.75) -- (7.5,-6.5);
+\node [font=\LARGE] at (7.5,9) {\textbf{ATGCGTACGTTAGCCTGACGTA}};
+\node [font=\Large] at (10.25,8) {Tokenize};
+\draw [line width=1.1pt, ->, >=Stealth, dashed] (7.5,6.25) -- (7.5,5.5);
+\node [font=\Large] at (12.25,5.75) {Mask (Only in pre-training)};
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (-4.75,2.75) rectangle  node {\LARGE $E_{[CLS]}$} (-2.25,1.5);
+\node [font=\LARGE] at (7.5,2) {\textbf{$\cdots$}};
+\node [font=\LARGE] at (7.5,1) {$+$};
+\node [font=\LARGE] at (7.5,0.25) {\textbf{$\cdots$}};
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (-2,2.75) rectangle  node {\LARGE $E_{ATGCGT}$} (0.5,1.5);
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (0.75,2.75) rectangle  node {\LARGE $E_{[MASK]}$} (3.25,1.5);
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (3.5,2.75) rectangle  node {\LARGE $E_{GCGTAC}$} (6,1.5);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (-4.75,1) rectangle  node {\LARGE $E_{1}$} (-2.25,-0.25);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (-2,1) rectangle  node {\LARGE $E_{2}$} (0.5,-0.25);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (0.75,1) rectangle  node {\LARGE $E_{3}$} (3.25,-0.25);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (3.5,1) rectangle  node {\LARGE $E_{4}$} (6,-0.25);
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (9,2.75) rectangle  node {\LARGE $E_{CTGACG}$} (11.5,1.5);
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (11.75,2.75) rectangle  node {\LARGE $E_{TGACGT}$} (14.25,1.5);
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (14.5,2.75) rectangle  node {\LARGE $E_{[MASK]}$} (17,1.5);
+\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (17.25,2.75) rectangle  node {\LARGE $E_{[SEP]}$} (19.75,1.5);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (9,1) rectangle  node {\LARGE $E_{15}$} (11.5,-0.25);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (11.75,1) rectangle  node {\LARGE $E_{16}$} (14.25,-0.25);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (14.5,1) rectangle  node {\LARGE $E_{17}$} (17,-0.25);
+\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (17.25,1) rectangle  node {\LARGE $E_{18}$} (19.75,-0.25);
+\node [font=\LARGE] at (7.5,-0.75) {$=$};
+\node [font=\LARGE] at (7.5,-1.5) {\textbf{$\cdots$}};
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (-4.75,-0.75) rectangle  node {\LARGE $I_{t1}$} (-2.25,-2);
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (-2,-0.75) rectangle  node {\LARGE $I_{t2}$} (0.5,-2);
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (0.75,-0.75) rectangle  node {\LARGE $I_{t3}$} (3.25,-2);
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (3.5,-0.75) rectangle  node {\LARGE $I_{t4}$} (6,-2);
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (9,-0.75) rectangle  node {\LARGE $I_{t15}$} (11.5,-2);
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (11.75,-0.75) rectangle  node {\LARGE $I_{t16}$} (14.25,-2);
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (14.5,-0.75) rectangle  node {\LARGE $I_{t17}$} (17,-2);
+\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (17.25,-0.75) rectangle  node {\LARGE $I_{t18}$} (19.75,-2);
+\draw [ fill={rgb,255:red,255; green,214; blue,228} , line width=0.8pt ] (7.5,-7.5) circle (0.75cm) node {\LARGE $+$} ;
+\node [font=\LARGE] at (7.5,-21.25) {\textbf{$\cdots$}};
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (-4.75,-20.5) rectangle  node {\LARGE $I_{t1}$} (-2.25,-21.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (-2,-20.5) rectangle  node {\LARGE $I_{t2}$} (0.5,-21.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (0.75,-20.5) rectangle  node {\LARGE $I_{t3}$} (3.25,-21.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (3.5,-20.5) rectangle  node {\LARGE $I_{t4}$} (6,-21.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (9,-20.5) rectangle  node {\LARGE $I_{t15}$} (11.5,-21.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (11.75,-20.5) rectangle  node {\LARGE $I_{t16}$} (14.25,-21.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (14.5,-20.5) rectangle  node {\LARGE $I_{t17}$} (17,-21.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (17.25,-20.5) rectangle  node {\LARGE $I_{t18}$} (19.75,-21.75);
+\node [font=\LARGE] at (8,-12) {};
+\node [font=\LARGE] at (8,-12) {};
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-18) -- (7.5,-20.25);
+\draw [line width=0.8pt, short] (7.5,-3.75) -- (11.75,-3.75);
+\draw [line width=0.8pt, short] (11.75,-3.75) -- (11.75,-7.5);
+\draw [line width=0.8pt, ->, >=Stealth] (11.75,-7.5) -- (8.5,-7.5);
+\node [font=\LARGE] at (-8.75,-21) {\textbf{Last Hidden State}};
+\draw [ fill={rgb,255:red,251; green,193; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.5,-4.5) rectangle  node {\large \textbf{Multi-Head Self-Attention}} (11,-5.5);
+\draw [ fill={rgb,255:red,199; green,251; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.25,-9.5) rectangle  node {\Large \textbf{LayerNorm}} (10.75,-10.5);
+\draw [ fill={rgb,255:red,199; green,251; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.25,-16.75) rectangle  node {\Large \textbf{LayerNorm}} (10.75,-17.75);
+\draw [ fill={rgb,255:red,251; green,238; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.25,-11.75) rectangle  node {\Large \textbf{Feed Forward}} (10.75,-12.75);
+\draw [ fill={rgb,255:red,255; green,214; blue,228} , line width=0.8pt ] (7.5,-14.75) circle (0.75cm) node {\LARGE $+$} ;
+\draw [ fill={rgb,255:red,245; green,173; blue,173} , line width=0.8pt , rounded corners = 20.4] (-6.5,-23.5) rectangle  node {\LARGE \textbf{Classification Layer}} (-0.5,-26.25);
+\draw [ fill={rgb,255:red,224; green,224; blue,224} , line width=0.8pt , rounded corners = 20.4] (13.75,-23.25) rectangle (20.25,-26.5);
+\draw [ fill={rgb,255:red,245; green,173; blue,173} , line width=0.8pt , rounded corners = 20.4] (14,-23.5) rectangle  node {\LARGE \textbf{Classification Layer}} (20,-26.25);
+\draw [line width=0.8pt, ->, >=Stealth] (-3.5,-22.25) -- (-3.5,-23);
+\draw [line width=0.8pt, ->, >=Stealth] (13.5,-22.25) -- (14.25,-23);
+\draw [line width=0.8pt, ->, >=Stealth] (16,-22.25) -- (16.25,-23);
+\draw [line width=0.8pt, ->, >=Stealth] (18.5,-22.25) -- (18.5,-23);
+\draw [line width=0.8pt, ->, >=Stealth] (-3.5,-26.75) -- (-3.5,-27.5);
+\draw [line width=0.8pt, ->, >=Stealth] (17,-26.75) -- (17,-27.5);
+\node [font=\LARGE] at (-10.75,-24.75) {\textbf{Sentence-level Classifier}};
+\node [font=\LARGE] at (24,-24.75) {\textbf{Token-level Classifier}};
+
+\node [font=\LARGE] at (-3.5,-28.25) {\textbf{Classification result of original sequence}};
+\node [font=\LARGE] at (17,-28) {\textbf{Classification result of each masked token}};
+\node [font=\Huge] at (16.5,-10.5) {$\times 12$};
+\node [font=\LARGE] at (8,-7.75) {};
+\node [font=\LARGE] at (8,-7.75) {};
+\node [font=\LARGE] at (8,-7.75) {};
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-3.5) -- (7.5,-4.25);
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-8.5) -- (7.5,-9.25);
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-10.75) -- (7.5,-11.5);
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-13) -- (7.5,-13.75);
+\draw [line width=0.8pt, short] (7.5,-11) -- (11.75,-11);
+\draw [line width=0.8pt, short] (11.75,-11) -- (11.75,-14.75);
+\draw [line width=0.8pt, ->, >=Stealth] (11.75,-14.75) -- (8.5,-14.75);
+\node [font=\LARGE] at (8,-13.75) {};
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-15.75) -- (7.5,-16.5);
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,8.5) -- (7.5,7.75);
+\node [font=\LARGE] at (0.75,7) {\textbf{[CLS], ATGCGT, TGCGTA, GCGTAC,}};
+\node [font=\LARGE] at (14.25,7) {\textbf{, CTGACG, TGACGT, GACGTA, [SEP]}};
+\node [font=\LARGE] at (7.5,7) {\textbf{$\cdots$}};
+\node [font=\LARGE] at (1,4.75) {\textbf{[CLS], ATGCGT, [MASK], GCGTAC,}};
+\node [font=\LARGE] at (7.5,4.75) {\textbf{$\cdots$}};
+\node [font=\LARGE] at (14,4.75) {\textbf{, CTGACG, TGACGT, [MASK], [SEP]}};
+\node [font=\Large] at (12.25,3.5) {Feed to the Embedding layer};
+\end{circuitikz}
+}%
+\caption{Overview of the DNABERT model architecture. The input DNA sequence is divided into overlapping k-mers (with $k=6$ in this example) and represented using token and positional embeddings. These embeddings are passed through 12 transformer layers, each composed of multi-head self-attention, normalization, and feed-forward sublayers. The resulting hidden states are then used for: sequence-level classification (predicting properties of the entire DNA sequence) and token-level classification (predicting masked k-mers during pre-training). \citep{DNABERT}}
+\label{fig: architecture DNAbert}
 \end{figure}
 
+\newpage
+\section{Embeddings}
+Bla
