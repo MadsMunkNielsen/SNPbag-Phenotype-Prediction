@@ -1,56 +1,43 @@
-% incl/bib/articles.bib : references to articles
-% ------------------------------------------------------------------------------
-
-@article{chen2024pharmacokinetics,
-  title={Pharmacokinetics \& Compartmental Modeling},
-  author={Chen, Li and Rozakis, R.},
-  year={2024},
-  month={November 11},
-  journal={Allucent},
-  url={https://www.allucent.com/resources/blog/compartmental-modeling-pharmacokinetics}
-}
-
-
-@ARTICLE{DNABERT,
-  title     = "{DNABERT}: pre-trained Bidirectional Encoder Representations
-               from Transformers model for {DNA-language} in genome",
-  author    = "Ji, Yanrong and Zhou, Zhihan and Liu, Han and Davuluri, Ramana V",
-  abstract  = "MOTIVATION: Deciphering the language of non-coding DNA is one of
-               the fundamental problems in genome research. Gene regulatory
-               code is highly complex due to the existence of polysemy and
-               distant semantic relationship, which previous informatics
-               methods often fail to capture especially in data-scarce
-               scenarios. RESULTS: To address this challenge, we developed a
-               novel pre-trained bidirectional encoder representation, named
-               DNABERT, to capture global and transferrable understanding of
-               genomic DNA sequences based on up and downstream nucleotide
-               contexts. We compared DNABERT to the most widely used programs
-               for genome-wide regulatory elements prediction and demonstrate
-               its ease of use, accuracy and efficiency. We show that the
-               single pre-trained transformers model can simultaneously achieve
-               state-of-the-art performance on prediction of promoters, splice
-               sites and transcription factor binding sites, after easy
-               fine-tuning using small task-specific labeled data. Further,
-               DNABERT enables direct visualization of nucleotide-level
-               importance and semantic relationship within input sequences for
-               better interpretability and accurate identification of conserved
-               sequence motifs and functional genetic variant candidates.
-               Finally, we demonstrate that pre-trained DNABERT with human
-               genome can even be readily applied to other organisms with
-               exceptional performance. We anticipate that the pre-trained
-               DNABERT model can be fined tuned to many other sequence analyses
-               tasks. AVAILABILITY AND IMPLEMENTATION: The source code,
-               pretrained and finetuned model for DNABERT are available at
-               GitHub (https://github.com/jerryji1993/DNABERT). SUPPLEMENTARY
-               INFORMATION: Supplementary data are available at Bioinformatics
-               online.",
+@ARTICLE{Zhang2023-ee,
+  title     = "Investigation of the {BERT} model on nucleotide sequences with
+               non-standard pre-training and evaluation of different k-mer
+               embeddings",
+  author    = "Zhang, Yao-Zhong and Bai, Zeheng and Imoto, Seiya",
+  abstract  = "MOTIVATION: In recent years, pre-training with the transformer
+               architecture has gained significant attention. While this
+               approach has led to notable performance improvements across a
+               variety of downstream tasks, the underlying mechanisms by which
+               pre-training models influence these tasks, particularly in the
+               context of biological data, are not yet fully elucidated.
+               RESULTS: In this study, focusing on the pre-training on
+               nucleotide sequences, we decompose a pre-training model of
+               Bidirectional Encoder Representations from Transformers (BERT)
+               into its embedding and encoding modules to analyze what a
+               pre-trained model learns from nucleotide sequences. Through a
+               comparative study of non-standard pre-training at both the data
+               and model levels, we find that a typical BERT model learns to
+               capture overlapping-consistent k-mer embeddings for its token
+               representation within its embedding module. Interestingly, using
+               the k-mer embeddings pre-trained on random data can yield
+               similar performance in downstream tasks, when compared with
+               those using the k-mer embeddings pre-trained on real biological
+               sequences. We further compare the learned k-mer embeddings with
+               other established k-mer representations in downstream tasks of
+               sequence-based functional prediction. Our experimental results
+               demonstrate that the dense representation of k-mers learned from
+               pre-training can be used as a viable alternative to one-hot
+               encoding for representing nucleotide sequences. Furthermore,
+               integrating the pre-trained k-mer embeddings with simpler models
+               can achieve competitive performance in two typical downstream
+               tasks. AVAILABILITY AND IMPLEMENTATION: The source code and
+               associated data can be accessed at
+               https://github.com/yaozhong/bert\_investigation.",
   journal   = "Bioinformatics",
   publisher = "Oxford University Press (OUP)",
-  volume    =  37,
-  number    =  15,
-  pages     = "2112--2120",
-  month     =  aug,
-  year      =  2021,
-  copyright = "https://academic.oup.com/journals/pages/open\_access/funder\_policies/chorus/standard\_publication\_model",
+  volume    =  39,
+  number    =  10,
+  month     =  oct,
+  year      =  2023,
+  copyright = "https://creativecommons.org/licenses/by/4.0/",
   language  = "en"
 }
