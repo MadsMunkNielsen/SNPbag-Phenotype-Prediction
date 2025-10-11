@@ -143,16 +143,20 @@ Finally, the chapter introduces the evaluation metrics used to assess model perf
 
 \newpage
 \section{Input sequence}
-Let $\Sigma = \{ A, T, G, C \}$ denote the nucleotide alphabet, and let $L \in \mathbb{N}$ represent the length of a sequence. 
-An ordered nucleotide sequence can then be defined as
+Let $\Sigma = \{ A, T, G, C \}$ denote the nucleotide alphabet, and let an ordered nucleotide sequence be defined as
 \begin{align*}
-S = (s_1, s_2, \ldots, s_L), \quad s_i \in \Sigma, \; \forall i \in \{1, 2, \ldots, L\},
+S = (s_1, s_2, \ldots, s_L), \quad s_i \in \Sigma, \; \forall i \in \{1, 2, \ldots, L\}, L \in \N,
 \end{align*}
-such that $S \in \Sigma^L$ represents the set of all possible nucleotide strings of length $L$. To transform an arbitrary nucleotide sequence, $S$, into an input sequence for the DNABERT model, it is partitioned into a sequence of overlapping $k$-mers, each defined by
+such that $S \in \Sigma^L$ represents the set of all possible nucleotide strings of length $L$. To prepare an arbitrary nucleotide sequence, $S$, for input to the DNABERT model, the sequence is first split into overlapping $k$-mers defined as
 \begin{align*}
 t_i = (s_i, s_{i+1}, \ldots, s_{i+k-1}), \quad \forall i \in \{1, 2, \ldots, L - k + 1\}.
 \end{align*}
-Collectively the $k$-mers, five special tokens, summarized in Table \ref{tab:special_tokens}, are included in the input sequence. An example of such an input sequence can be seen in Figure \ref{fig: architecture DNAbert}.
+The sequence of these $k$-mers, $T = (t_1, t_2, \dots, t_{L-k+1})$, forms the primary component of the model's input. The complete input representation for DNABERT integrates the sequence of $k$-mers with five special tokens
+\begin{align*}
+    K = ([CLS], k_1, k_2, \dots, k_{L-k+1}, [SEP]),
+\end{align*}
+where $k_i = \{t_i, [PAD], [MASK], [UNK] \}$ and each representation of the special tokens are summarized in Table \ref{tab:special_tokens}.
+
 
 \begin{table}[H]
 \centering
