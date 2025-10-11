@@ -1,4 +1,10 @@
 \chapter{Bidirectional Encoder Representations from Transformers}
+
+% The collection of all $k$-mers is represented as
+% \begin{align*}
+% T = (t_1, t_2, \ldots, t_{L - k + 1}) \in \R^{k \times L-k+1},
+% \end{align*}
+
 This chapter focuses on the architecture of DNABERT, a pre-trained Bidirectional Encoder Representations from Transformers model designed for genomic sequences, see Figure \ref{fig: architecture DNAbert}. DNABERT extends the original BERT framework first developed for natural language processing by replacing words with DNA k-mers, enabling the model to learn representations of nucleotide sequences, that can be used for predictive genomic tasks.
 
 Initially, the chapter begins by describing how raw DNA sequences are divided into overlapping k-mers, which serve as the fundamental input units. It then explains the masking procedure used during pre-training, where a subset of k-mers is hidden to force the model to infer them from surrounding context. Next, the construction of token, positional, and segment embeddings is presented. These embeddings encode the k-mers before being passed into the transformer architecture, which is composed of stacked sublayers including multi-head self-attention, feed-forward networks, and layer normalization. The resulting hidden states are then examined, both in their role for sequence-level classification (predicting global properties of entire DNA sequences) and for token-level classification (recovering masked k-mers during pre-training).
@@ -136,5 +142,40 @@ Finally, the chapter introduces the evaluation metrics used to assess model perf
 \end{figure}
 
 \newpage
-\section{Embeddings}
-Bla
+\section{Input sequence}
+Let $\Sigma = \{ A, T, G, C \}$ denote the nucleotide alphabet, and let $L \in \mathbb{N}$ represent the length of a sequence. 
+An ordered nucleotide sequence can then be defined as
+\begin{align*}
+S = (s_1, s_2, \ldots, s_L), \quad s_i \in \Sigma, \; \forall i \in \{1, 2, \ldots, L\},
+\end{align*}
+such that $S \in \Sigma^L$ represents the set of all possible nucleotide strings of length $L$. To transform an arbitrary nucleotide sequence, $S$, into an input sequence for the DNABERT model, it is partitioned into a sequence of overlapping $k$-mers, each defined by
+\begin{align*}
+t_i = (s_i, s_{i+1}, \ldots, s_{i+k-1}), \quad \forall i \in \{1, 2, \ldots, L - k + 1\}.
+\end{align*}
+Collectively the $k$-mers, five special tokens, summarized in Table \ref{tab:special_tokens}, are included in the input sequence. An example of such an input sequence can be seen in Figure \ref{fig: architecture DNAbert}.
+
+\begin{table}[H]
+\centering
+\caption{Special tokens used in the DNABERT vocabulary.}
+\label{tab:special_tokens}
+\begin{tabular}{ll}
+\toprule
+\textbf{Token} & \textbf{Description} \\
+\midrule
+$[\text{CLS}]$  & Marks the beginning of the input sequence. \\
+$[\text{SEP}]$  & Denotes the end of the input sequence. \\
+$[\text{PAD}]$  & Padding token ensuring that all input sequences have equal length. \\
+$[\text{MASK}]$ & Used during pre-training to hide selected $k$-mers for prediction. \\
+$[\text{UNK}]$  & Represents unknown or unrecognized tokens. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+\begin{align*}
+S' = [\text{CLS}],\, t_1, t_2, \ldots, t_{L-k+1}, [\text{SEP}],
+\end{align*}
+where $(\text{CLS}])$ denotes a classification token appended at the start of the sequence, and $[\text{SEP}]$ marks its termination. 
+Each element in $S'$ is subsequently embedded through the token, positional, and (if applicable) segment embedding layers before being passed into the transformer encoder.
