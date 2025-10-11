@@ -36,17 +36,17 @@ model = AutoModel.from_pretrained("zhihan1996/DNABERT-2-117M", trust_remote_code
 # Tokenizer to device. Makes sure the model is running on the GPU instead of the CPU
 model.to(device)
 
-
 dna = "ACGTAGCATCGGATCTATCTATCGACACTTGGTTATCGATCTACGAGCATCTCGTTAGC"
 inputs = tokenizer(dna, return_tensors = 'pt')["input_ids"].to(device)
 hidden_states = model(inputs)[0] # [1, sequence_length, 768]
 embedding_mean = torch.mean(hidden_states[0], dim=0)
 hidden_states.shape
 
-
+import os
+os.getcwd()
 
 from math import floor
-data = pd.read_csv("code/RNN/Coding_NonCoding_DNA_Sequences.csv")
+data = pd.read_csv("code/Code_Tests/Coding_NonCoding_DNA_Sequences.csv")
 data = data[["DNA_sequence", "Target"]]
 data = data.rename(columns={"DNA_sequence": "sequence", "Target": "target"})
 batch_size = 100
@@ -111,12 +111,12 @@ mlp = keras.Sequential(
 mlp.compile(optimizer="adam", loss="binary_crossentropy", metrics=[BinaryAccuracy(), Precision(), Recall(), AUC()])
 callbacks = [
     EarlyStopping(patience=10),
-    ModelCheckpoint("code/RNN//model.weights.h5", save_best_only=True, save_weights_only=True, verbose=True),
+    ModelCheckpoint("code/Code_Tests/model.weights.h5", save_best_only=True, save_weights_only=True, verbose=True),
     ReduceLROnPlateau(patience=1),
-    CSVLogger("code/RNN//history.csv")
+    CSVLogger("code/Code_Tests//history.csv")
 ]
 history = mlp.fit(X_train, y_train, epochs=500, validation_split=0.2, callbacks=callbacks, verbose=0)
-mlp.load_weights("code/RNN//model.weights.h5")
+mlp.load_weights("code/Code_Tests/model.weights.h5")
 
 
 
