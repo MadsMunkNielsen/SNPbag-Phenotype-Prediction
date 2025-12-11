@@ -1,1 +1,257 @@
+
+
 \chapter{Clinical Data and Polygenic Risk Score}
+This chapter provides the genetic and statistical foundation for genome-wide association studies (GWAS) and polygenic risk scores (PRS). It begins with the structure of the human genome and explains how genetic variation is captured through single nucleotide polymorphisms (SNPs). The organisation of SNP-array data is then outlined, together with the quality control steps required before any association analysis can be considered reliable.
+
+As genetic data is correlated and influenced by ancestry, the chapter covers linkage disequilibrium, population structure, and the use of principal component analysis to account for these patterns. Lastly, the chapter describes how SNP effects are estimated in GWAS using the methods PLINK and LDpred2, and how these estimated effects are used to compute polygenic risk scores (PRS).
+% Biobanks collect and store genetic data with phenotypic information from large numbers of individuals. The phenotypic data is measurable traits such as diagnoses, lifestyle factors, and disease outcomes. With the genetic data and phenotypic information stored by biobanks, polygenetic risk scores can be computed. A polygenic risk score summarizes the contribution of genetic variation to a trait by aggregating the small effects of many individual variants into a single quantitative measure of genetic liability.
+
+\section{Genome Structure and Biallelic SNP Encoding}
+Inside each cell, the nucleus contains most of the deoxyribonucleic acid (DNA), which stores biological information in the specific order of its four chemical bases: adenine (A), guanine (G), cytosine (C), and thymine (T). The bases pair to form complementary matches, with each base on one strand of the DNA molecule aligning with its partner on the opposite strand. Together the two strands form a spiraling double helix. \citep[pp. 6-9]{Genetics101}
+
+In humans, each cell contains $23$ pairs of chromosomes, with one chromosome in each pair inherited from each parent. Of these pairs, $22$ are autosomes and one is the pair of sex chromosomes. Chromosomes consist of tightly packed DNA, and their numbering roughly reflects their size, with lower-numbered chromosomes generally containing more base pairs. Each chromosome pair is homologous, meaning the two chromosomes share the same arrangement of loci. The alleles at these loci, which represent different versions of the same gene, may differ between the chromosomes, reflecting differences in their underlying nucleotide sequences. \citep{HomologuosChromosome}
+
+Each chromosome carries many genes, which are specific sequences of DNA bases. Every gene has its own unique sequence and can vary in length. Across all chromosomes, the total number of genes are approximately $20.000$ to $25.000$. The collection of all genes make up the genome. \citep[pp. 6-9]{Genetics101}. All individuals share approximately $99\%$ of their genetic composition, the remaining variation contributes to the phenotypic (a measurable trait or outcome) diversity observed among individuals. At specific loci, this variation often appears as SNPs, which are single-base substitutions. Across the roughly three-billion-base human genome, SNPs occur approximately once every 100 to 300 bases \citep{Genetics101}. A SNP is said to be biallelic when a given genomic position exhibits exactly two nucleotide variants within a population. These two variants make up the SNP’s alleles i.e. for a given SNP at locus $j$, the set of observed alleles can be expressed as
+\begin{align*}
+A_j = \{a_{j,1}, a_{j,2}\}, \quad a_{j,1}, a_{j,2} \in \{A, B\}.
+\end{align*}
+Since each individual carries two alleles at locus $j$, one on each chromosome, the set of possible genotypes for a biallelic SNP at locus $j$ is
+\begin{align*}
+G_j = \{(a_{j,1}, a_{j,1}),\ (a_{j,1}, a_{j,2}),\ (a_{j,2}, a_{j,2})\}.
+\end{align*}
+Thus, the biallelic SNP at locus $j$ can be encoded numerically as
+\begin{align*}
+    g_{j, i} \in \{0, 1, 2\},
+\end{align*}
+where $g_{j,0} = 0$ indicating homozygosity for the major allele, $g_{j,1} = 1$ indicating heterozygosity, and $g_{j,2} = 2$ indicating homozygosity for the minor allele. \cite{Graffelman2007} 
+
+\section{Genome-wide Association Studies}
+The purpose of genome-wide association studies (GWAS) is to assess whether differences in allele frequencies at specific loci are associated with phenotypic differences among individuals of similar ancestral background. Conducting such analyses requires the collection of genomic data. Although whole-genome sequencing would be ideal, collecting complete genomic data for all individuals is expensive. Instead, a more cost-effective approach is to use a SNP-array, which genotypes a selected subset of the estimated $10$ million SNPs found in the human genome. \citep{LaFramboise2009}
+
+SNP-arrays produce large datasets, and loading those files can be computationally heavy. To reduce this computation burden, the data is provided as binary PLINK data, which consists of three files: The first, a binary file (\texttt{$^\ast$.bed}), that stores individual identifiers (IDs) and genotype data. The remaining two files are plain text files: the (\texttt{$^\ast$.fam}) file, contains individual-level information, and the (\texttt{$^\ast$.bim}) file, contains details about genetic markers. \citep{Marees2018}
+
+As the collection of genomic data is imperfect, quality control (QC) procedures must be conducted to ensure the reliability of the dataset. The first QC is to filter SNPs and individuals with more than $20\%$ missingness, with SNPs being filtered before individuals. Another QC is to identifies mismatches between the reported sex and the X-chromosome homozygosity. The homozygosity estimate should be $>0.8$ for males and $>0.2$ for females. \citep{Marees2018}
+
+SNPs that deviate from Hardy–Weinberg equilibrium (HWE) are removed, as such deviations can indicate genotyping errors. Under HWE, the allele and genotype frequencies at a locus are expected to remain stable across generations, therefore, when the observed genotype distribution at a SNP departs from these expectations, it suggests that the genotypes may not be accurate. 
+
+Consider a biallelic SNP with alleles $A$ and $B$, where the population frequency of allele $A$ is $p$ and for allele $B$ is $1 - p$. Let $n_{AA}$, $n_{AB}$, and $n_{BB}$ denote the observed genotype counts in a sample of $n$ individuals. Then the maximum-likelihood estimate of the allele $A$ frequency is
+\begin{align}\label{MLE: frequency}
+\hat{p}_{A} = \frac{2n_{AA} + n_{AB}}{2n},
+\end{align}
+as the probability of observing an exact amount of $A$ and $B$ alleles follows a binomial model. Under Hardy–Weinberg equilibrium, the expected genotype counts are obtained by substituting \eqref{MLE: frequency} into the equilibrium proportions,
+\begin{align*}
+e_{AA} = n\hat{p}_A^{2}, \quad
+e{AB} = 2n\hat{p}_A(1 - \hat{p}_A), \quad
+e{BB} = n(1 - \hat{p}_A)^{2}. \quad
+\end{align*}
+The chi-square statistic for testing deviation from HWE is
+\begin{align*}
+\chi^{2}
+&= \frac{(n_{AA} - e_{AA})^{2}}{e_{AA}}
+ + \frac{(n_{AB} - e_{AB})^{2}}{e_{AB}}
+ + \frac{(n_{BB} - e_{BB})^{2}}{e_{BB}} .
+\end{align*}
+Under the null hypothesis of Hardy--Weinberg equilibrium, this statistic follows a $\chi^{2}_{1}$ distribution. \cite{Graffelman2007}
+
+
+\newpage
+\begin{table}[H]
+\centering
+\caption{QC steps conducted prior to genetic association analysis}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{p{3.9cm} X}
+\toprule
+\textbf{QC Step} & \textbf{Description} \\
+\midrule
+
+\textbf{Missingness of SNPs and individuals} 
+& Removes SNPs and individuals with a great amount of missing data. A missingness threshold of $20\%$ is commonly used. SNP filtering is performed before individual filtering. \\
+\midrule
+
+\textbf{Sex discrepancy}
+& Identifies mismatches between reported sex and X-chromosome heterozygosity pattern. The homozygosity estimate should be $>0.8$ for males and $>0.2$ for females. \\
+\midrule
+
+\textbf{Minor allele frequency (MAF)}
+& Removes SNPs with low minor allele frequency, since these variants are potentially measurement error. A common cutoff is a minor allele frequency below $0.01$.\\
+\midrule
+
+\textbf{Hardy-Weinberg equilibrium (HWE)}
+& Excludes SNPs that strongly deviate from HWE, a sign of genotyping error or selection. Suggested cutoffs: $p < 10^{-6}$ (quantitative traits), or $p < 10^{-10}$ in cases and $p < 10^{-6}$ in controls (binary traits). \\
+\midrule
+
+\textbf{Heterozygosity}
+& Removes individuals with unusually high or low heterozygosity. The typical cutoff is outside $\pm 3$ standard deviations of the sample mean. \\
+\midrule
+
+\textbf{Relatedness}
+& Uses identity-by-descent estimates to detect related individuals. Those with $\hat{\pi} > 0.2$ (approximately second-degree relatives) are usually removed unless the study design requires retaining them. \\
+\midrule
+
+\textbf{Population stratification}
+& Assesses the population structure using PCA. Independent SNPs are selected for the analysis, and roughly the first $10$ principal components are included as covariates for correction in later analyses.\\
+\bottomrule
+\label{tab: Quality control control}
+\end{tabularx}
+\end{table}
+
+
+\section{Linkage Disequilibrium}
+A central property of genomic data is that SNPs are not independently distributed across the genome. Instead, alleles at nearby loci tend to be correlated due to linkage disequilibrium (LD). Consider two biallelic loci $j$ and $k$ with minor allele frequencies $p_j$ and $p_k$. Let $h_{ab}$ denote the haplotype frequency of allele $a$ at locus $j$ jointly with allele $b$ at locus $k$. Under independence, one would expect
+\[
+h_{a_{j,2} a_{k,2}} = p_j p_k.
+\]
+Deviation from this expectation is quantified by the LD coefficient
+\[
+D_{jk} = h_{a_{j,2} a_{k,2}} - p_j p_k.
+\]
+A standardized measure widely used in GWAS is the squared correlation
+\[
+r_{jk}^2 = \frac{D_{jk}^2}{p_j(1-p_j) p_k(1-p_k)}.
+\]
+If $r_{jk}^2 \approx 1$, the two SNPs carry almost identical genetic information; if $r_{jk}^2 \approx 0$, they behave independently.
+
+LD decays with recombination, and empirical LD patterns reflect population history, recombination hotspots, and demographic events. Because LD induces correlation among SNPs, it affects both GWAS effect estimation and polygenic score construction. Modern PRS methods, including LDpred2, explicitly incorporate LD information to avoid biased effect estimates.
+
+\section{Reference Genome Assemblies and Harmonization}
+All GWAS analyses depend on a reference genome assembly, such as GRCh37 or GRCh38, which defines chromosomal coordinates and allele annotations. Let each SNP be represented as
+\[
+s_j = (\mathrm{CHR}_j, \mathrm{BP}_j, a_{j,1}, a_{j,2}),
+\]
+where $\mathrm{CHR}_j$ is the chromosome index, $\mathrm{BP}_j$ is the base-pair coordinate, and $(a_{j,1}, a_{j,2})$ is the ordered allele pair.
+
+Harmonization between a GWAS summary dataset and a target cohort requires ensuring:
+
+\begin{enumerate}
+    \item Chromosomal positions correspond to the same reference genome.
+    \item Alleles are aligned such that the effect allele in the GWAS matches the same physical allele in the target data.
+    \item Strand-ambiguous SNPs (A/T and C/G) are removed or retained only when allele frequencies permit safe alignment.
+\end{enumerate}
+
+Given allele frequencies $p_j^{\mathrm{GWAS}}$ and $p_j^{\mathrm{TARGET}}$, consistency is typically verified using
+\[
+\left| p_j^{\mathrm{GWAS}} - p_j^{\mathrm{TARGET}} \right| < \varepsilon,
+\]
+with $\varepsilon$ often chosen as $0.1$. SNPs that fail this check are excluded.
+
+A harmonized reference genome is also essential for constructing LD correlation matrices required in LD-aware PRS methods.
+
+\section{Population Structure and PCA}
+Population structure arises when allele frequencies differ systematically between subgroups due to ancestry. If unaccounted for, it can induce spurious associations in GWAS. Principal component analysis (PCA) provides a quantitative description of such structure.
+
+Let $X \in \mathbb{R}^{n \times m}$ denote the centered and scaled genotype matrix for $n$ individuals and $m$ LD-pruned SNPs. The empirical covariance matrix is
+\[
+\Sigma = \frac{1}{m} X X^\top.
+\]
+PCA decomposes this as
+\[
+\Sigma = U \Lambda U^\top,
+\]
+where $U$ contains orthonormal eigenvectors (principal components, PCs) and $\Lambda$ contains the eigenvalues.
+
+The projection of individual $i$ onto PC $k$ is
+\[
+z_{ik} = U_{ik}.
+\]
+The leading PCs typically correspond to ancestry differences. In GWAS, PCs enter the regression model as covariates:
+\[
+Y_i = \beta_0 + \beta_j g_{ij} + \sum_{k=1}^{K} \gamma_k z_{ik} + \varepsilon_i,
+\]
+removing confounding due to ancestry.
+
+\section{Estimation of SNP Effects Using PLINK}
+After QC and PCA, GWAS effect estimation proceeds by fitting univariate regression models for each SNP. For a quantitative trait, PLINK fits
+\[
+Y_i = \alpha + \beta_j g_{ij} + \mathbf{c}_i^\top \boldsymbol{\gamma} + \varepsilon_i,
+\]
+where $\mathbf{c}_i$ includes covariates such as age, sex, and PCs. The ordinary least squares estimator is
+\[
+\hat{\beta}_j 
+= \frac{\sum_{i} (g_{ij} - \bar{g}_j)(Y_i - \bar{Y})}
+       {\sum_{i}(g_{ij} - \bar{g}_j)^2}.
+\]
+
+For binary traits, PLINK uses logistic regression:
+\[
+\Pr(Y_i = 1 \mid g_{ij}, \mathbf{c}_i) 
+= \text{logit}^{-1} \!\left( \alpha + \beta_j g_{ij} + 
+\mathbf{c}_i^\top \boldsymbol{\gamma} \right).
+\]
+
+The resulting set $\{\hat{\beta}_j\}$ forms the GWAS summary statistics used for polygenic risk scoring.
+
+
+\section{LDpred2: Bayesian Adjustment of SNP Effect Sizes}
+LDpred2 improves PRS accuracy by incorporating LD information into effect-size estimation. Let $\boldsymbol{\beta} = (\beta_1,\ldots,\beta_m)$ denote true SNP effects, and let $\hat{\boldsymbol{\beta}}$ denote observed GWAS estimates. LDpred2 models the relationship as
+\[
+\hat{\boldsymbol{\beta}} \mid \boldsymbol{\beta} 
+\sim \mathcal{N}(R\boldsymbol{\beta}, \sigma^2 I),
+\]
+where $R$ is the LD correlation matrix estimated from a reference panel.
+
+A spike-and-slab prior is assumed:
+\[
+\beta_j \sim (1-p)\delta_0 
++ p \mathcal{N}(0, \tau^2),
+\]
+where $p$ is the proportion of causal SNPs and $\tau^2$ the variance of non-zero effects. LDpred2 computes the posterior mean effect size
+\[
+\hat{\beta}_j^{\text{post}}
+= \mathbb{E}[\beta_j \mid \hat{\boldsymbol{\beta}}, R].
+\]
+
+In the infinitesimal model (LDpred2-inf),
+\[
+\beta_j \sim \mathcal{N}\!\left(0, \frac{h^2}{m} \right),
+\]
+yielding
+\[
+\hat{\boldsymbol{\beta}}^{\mathrm{inf}}
+= \left( R + \frac{m \sigma^2}{h^2} I \right)^{-1} \hat{\boldsymbol{\beta}}.
+\]
+
+Finally, the polygenic risk score for individual $i$ is
+\[
+\mathrm{PRS}_i 
+= \sum_{j=1}^{m} g_{ij} \hat{\beta}_j^{\mathrm{post}}.
+\]
+
+LDpred2-auto further estimates $h^2$, $p$, and $\tau^2$ automatically, eliminating manual hyperparameter tuning.
+
+\section{GWAS Summary Statistics and Manhattan Plots}
+GWAS results are typically summarized by a $p$-value for each SNP, testing the null hypothesis $H_0\!:\,\beta_j = 0$ in the association model. Let $p_j$ denote the $p$-value corresponding to SNP $j$. Because millions of SNPs are tested simultaneously, visualization of these results requires a compact representation of the genome-wide pattern of association.
+
+A Manhattan plot is a standard graphical tool for displaying GWAS summary statistics. On the horizontal axis, SNPs are ordered by their chromosomal position, often grouped by chromosome index $\mathrm{CHR}_j$ and base-pair coordinate $\mathrm{BP}_j$. On the vertical axis, the transformed statistic
+\[
+-\log_{10}(p_j)
+\]
+is plotted. Under the null hypothesis with no true associations, $p_j$ is approximately uniformly distributed on $(0,1)$, and hence $-\log_{10}(p_j)$ is concentrated near zero, forming a noisy baseline. SNPs strongly associated with the phenotype appear as vertical peaks.
+
+To account for multiple testing, a genome-wide significance threshold is often chosen as
+\[
+\alpha_{\text{GW}} = 5 \times 10^{-8},
+\]
+corresponding to a horizontal reference line at
+\[
+-\log_{10}(\alpha_{\text{GW}}).
+\]
+SNPs exceeding this threshold are considered genome-wide significant. Because of LD, clusters of associated SNPs typically form peaks rather than isolated points, and the width of these peaks reflects local LD structure.
+
+Manhattan plots thus serve two main purposes: they provide a global overview of where in the genome association signals occur, and they facilitate the identification of loci that might merit further fine-mapping or functional investigation. In the context of polygenic risk scores, Manhattan plots are useful for visually assessing the sparsity or density of strong associations, but PRS construction typically uses effect sizes across the entire genome rather than only genome-wide significant SNPs.
+
+
+\begin{itemize}
+    \item LD 
+    \item Ancestry - PCA
+    \item Test for significance - Kontroler type 1 fejl
+    \item PRS - Flere forskellige metoder: PLINK og LDPRED2-grid - herunder skal arvelighed inkluderes
+    \item Lav eksempel på PRS
+    \item Styr på kilder 
+\end{itemize}
+
+
+% For instance, when computing a polygenic risk score for colorectal cancer, the \texttt{$^\ast$.bed} file contains the genotype data for all individuals in both the case and control groups, along with their corresponding IDs. The \texttt{$^\ast$.fam} file contains subject-level information such as family structure, sex, and disease status. The \texttt{$^\ast$.bim} file specifies the genomic position and related details for each SNP. See Figure X (Figuren skal vise et udsnit af, hvordan filerne kan se ud.).
+
+
+
+% Let $\Sigma = \{A, T, G, C \}$ denote the set of DNA bases, where $A$ pairs with $T$ and $G$ pairs with $C$ to form complementary base pairs. A DNA sequence $S = (s_1, s_2, \ldots, s_L)$, with $L \in \mathbb{N}$, represents the ordered bases along one strand of the double helix, since each base uniquely determines its complementary counterpart, specifying one strand fully determines the sequence of the other. 
