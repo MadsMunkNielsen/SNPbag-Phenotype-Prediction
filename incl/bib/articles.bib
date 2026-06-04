@@ -6,13 +6,34 @@
     month={Sep}
 } 
 
-@ARTICLE{Marees2018-uy,
+@ARTICLE{Marees2018,
   title     = "A tutorial on conducting genome-wide association studies:
                Quality control and statistical analysis",
   author    = "Marees, Andries T and de Kluiver, Hilde and Stringer, Sven and
                Vorspan, Florence and Curis, Emmanuel and Marie-Claire, Cynthia
                and Derks, Eske M",
-  abstract  = "",
+  abstract  = "OBJECTIVES: Genome-wide association studies (GWAS) have become
+               increasingly popular to identify associations between single
+               nucleotide polymorphisms (SNPs) and phenotypic traits. The GWAS
+               method is commonly applied within the social sciences. However,
+               statistical analyses will need to be carefully conducted and the
+               use of dedicated genetics software will be required. This
+               tutorial aims to provide a guideline for conducting genetic
+               analyses. METHODS: We discuss and explain key concepts and
+               illustrate how to conduct GWAS using example scripts provided
+               through GitHub (https://github.com/MareesAT/GWA\_tutorial/). In
+               addition to the illustration of standard GWAS, we will also show
+               how to apply polygenic risk score (PRS) analysis. PRS does not
+               aim to identify individual SNPs but aggregates information from
+               SNPs across the genome in order to provide individual-level
+               scores of genetic risk. RESULTS: The simulated data and scripts
+               that will be illustrated in the current tutorial provide
+               hands-on practice with genetic analyses. The scripts are based
+               on PLINK, PRSice, and R, which are commonly used, freely
+               available software tools that are accessible for novice users.
+               CONCLUSIONS: By providing theoretical background and hands-on
+               experience, we aim to make GWAS more accessible to researchers
+               without formal training in the field.",
   journal   = "Int. J. Methods Psychiatr. Res.",
   publisher = "Wiley",
   volume    =  27,
@@ -96,4 +117,775 @@
   year = {2007},
   month = sep,
   pages = {77–84}
+}
+
+
+@article{Prive2020,
+  author  = {Privé, Florian and Arbel, Julyan and Vilhjálmsson, Bjarni J.},
+  title   = {{LDpred2}: better, faster, stronger},
+  journal = {Bioinformatics},
+  volume  = {36},
+  number  = {22-23},
+  pages   = {5424--5431},
+  year    = {2020},
+  doi     = {10.1093/bioinformatics/btaa1025}
+}
+
+@article{Prive2023,
+  author  = {Privé, Florian and Albiñana, Clara and Arbel, Julyan and Pasaniuc, Bogdan and Vilhjálmsson, Bjarni J.},
+  title   = {Inferring disease architecture and predictive ability with {LDpred2}-auto},
+  journal = {The American Journal of Human Genetics},
+  volume  = {110},
+  pages   = {2042--2055},
+  year    = {2023},
+  doi     = {10.1016/j.ajhg.2023.10.009}
+}
+
+@article{Choi2020,
+  title     = "Tutorial: a guide to performing polygenic risk score analyses",
+  author    = "Choi, Shing Wan and Mak, Timothy Shin-Heng and O'Reilly, Paul F",
+  abstract  = "A polygenic score (PGS) or polygenic risk score (PRS) is an
+               estimate of an individual's genetic liability to a trait or
+               disease, calculated according to their genotype profile and
+               relevant genome-wide association study (GWAS) data. While
+               present PRSs typically explain only a small fraction of trait
+               variance, their correlation with the single largest contributor
+               to phenotypic variation-genetic liability-has led to the routine
+               application of PRSs across biomedical research. Among a range of
+               applications, PRSs are exploited to assess shared etiology
+               between phenotypes, to evaluate the clinical utility of genetic
+               data for complex disease and as part of experimental studies in
+               which, for example, experiments are performed that compare
+               outcomes (e.g., gene expression and cellular response to
+               treatment) between individuals with low and high PRS values. As
+               GWAS sample sizes increase and PRSs become more powerful, PRSs
+               are set to play a key role in research and stratified medicine.
+               However, despite the importance and growing application of PRSs,
+               there are limited guidelines for performing PRS analyses, which
+               can lead to inconsistency between studies and misinterpretation
+               of results. Here, we provide detailed guidelines for performing
+               and interpreting PRS analyses. We outline standard quality
+               control steps, discuss different methods for the calculation of
+               PRSs, provide an introductory online tutorial, highlight common
+               misconceptions relating to PRS results, offer recommendations
+               for best practice and discuss future challenges.",
+  journal   = "Nat. Protoc.",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  15,
+  number    =  9,
+  pages     = "2759--2772",
+  month     =  sep,
+  year      =  2020,
+  copyright = "https://www.springernature.com/gp/researchers/text-and-data-mining",
+  language  = "en"
+}
+
+
+@article{Purcell2007,
+  author  = {Purcell, Shaun and Neale, Benjamin and Todd-Brown, Kathe and Thomas, Lori and Ferreira, Manuel A. R. and Bender, David and Maller, Julian and Sklar, Pamela and de Bakker, Paul I. W. and Daly, Mark J. and Sham, Pak C.},
+  title   = {{PLINK}: a tool set for whole-genome association and population-based linkage analyses},
+  journal = {American Journal of Human Genetics},
+  volume  = {81},
+  number  = {3},
+  pages   = {559--575},
+  year    = {2007},
+  doi     = {10.1086/519795}
+}
+
+@article{Chang2015,
+  author  = {Chang, Christopher C. and Chow, Carson C. and Tellier, Laurent C. A. M. and Vattikuti, Shashaank and Purcell, Shaun M. and Lee, James J.},
+  title   = {Second-generation {PLINK}: rising to the challenge of larger and richer datasets},
+  journal = {GigaScience},
+  volume  = {4},
+  number  = {1},
+  pages   = {7},
+  year    = {2015},
+  doi     = {10.1186/s13742-015-0047-8}
+}
+
+@article{BulikSullivan2015,
+  author  = {Bulik-Sullivan, Brendan K. and Loh, Po-Ru and Finucane, Hilary K. and Ripke, Stephan and Yang, Jian and Schizophrenia Working Group of the Psychiatric Genomics Consortium and Patterson, Nick and Daly, Mark J. and Price, Alkes L. and Neale, Benjamin M.},
+  title   = {{LD Score} regression distinguishes confounding from polygenicity},
+  journal = {Nature Genetics},
+  volume  = {47},
+  number  = {3},
+  pages   = {291--295},
+  year    = {2015},
+  doi     = {10.1038/ng.3211}
+}
+
+@article{Price2010,
+  author  = {Price, Alkes L. and Zaitlen, Noah A. and Reich, David and Patterson, Nick},
+  title   = {New approaches to population stratification in genome-wide association studies},
+  journal = {Nature Reviews Genetics},
+  volume  = {11},
+  pages   = {459--463},
+  year    = {2010},
+  doi     = {10.1038/nrg2813}
+}
+
+@article{Visscher2008,
+  author  = {Visscher, Peter M. and Hill, William G. and Wray, Naomi R.},
+  title   = {Heritability in the genomics era---concepts and misconceptions},
+  journal = {Nature Reviews Genetics},
+  volume  = {9},
+  pages   = {255--266},
+  year    = {2008},
+  doi     = {10.1038/nrg2322}
+}
+
+@article{Yang2017,
+  author  = {Yang, Jian and Zeng, Jian and Goddard, Michael E. and Wray, Naomi R. and Visscher, Peter M.},
+  title   = {Concepts, estimation and interpretation of {SNP}-based heritability},
+  journal = {Nature Genetics},
+  volume  = {49},
+  pages   = {1304--1310},
+  year    = {2017},
+  doi     = {10.1038/ng.3941}
+}
+
+@article{Vilhjalmsson2015,
+  author  = {Vilhjálmsson, Bjarni J. and Yang, Jian and Finucane, Hilary K. and Gusev, Alexander and Lindström, Sara and Ripke, Stephan and Genovese, Giulio and Loh, Po-Ru and Bhatia, Gaurav and Do, Ron and Hayeck, Tristan and Won, Hong-Hee and Schizophrenia Working Group of the Psychiatric Genomics Consortium and Discovery, Biology and Risk of Inherited Variants in Breast Cancer (DRIVE) study and Kathiresan, Sekar and Pato, Michele and Pato, Carlos and Tamimi, Rulla and Stahl, Eli and Zaitlen, Noah and Pasaniuc, Bogdan and Belbin, Gillian and Kenny, Eimear E. and Schierup, Mikkel H. and De Jager, Philip and Patsopoulos, Nikolaos A. and McCarroll, Steve and Daly, Mark and Purcell, Shaun and Chasman, Daniel and Neale, Benjamin and Goddard, Michael and Visscher, Peter M. and Kraft, Peter and Patterson, Nick and Price, Alkes L.},
+  title   = {Modeling linkage disequilibrium increases accuracy of polygenic risk scores},
+  journal = {American Journal of Human Genetics},
+  volume  = {97},
+  number  = {4},
+  pages   = {576--592},
+  year    = {2015},
+  doi     = {10.1016/j.ajhg.2015.09.001}
+}
+
+@article{Wray2014,
+  author  = {Wray, Naomi R. and Goddard, Michael E. and Visscher, Peter M.},
+  title   = {Research review: Polygenic risk scores: their use in psychiatric disorders},
+  journal = {Journal of Child Psychology and Psychiatry},
+  volume  = {55},
+  number  = {10},
+  pages   = {1068--1077},
+  year    = {2014},
+  doi     = {10.1111/jcpp.12289}
+}
+
+@article{Pirinen2025,
+  author  = {Pirinen, Matti},
+  title   = {Heritability and models for genetic covariance},
+  year    = {2025},
+  note    = {Course material, University of Helsinki}
+}
+
+@misc{GWAS-QC-tutorial,
+  author  = {{University of Oxford}},
+  title   = {{GWAS} Quality Control},
+  howpublished = {\url{https://www.stats.ox.ac.uk/~marchini/software/gwas/qc.html}},
+  year    = {2024},
+  note    = {Accessed: 2024}
+}
+
+@misc{FrontlineGenomics2024,
+  author  = {{Frontline Genomics}},
+  title   = {Quality control in genome-wide association studies},
+  howpublished = {\url{https://frontlinegenomics.com}},
+  year    = {2024},
+  note    = {Accessed: 2024}
+}
+
+
+@ARTICLE{Zaitlen2012,
+  title     = "Heritability in the genome-wide association era",
+  author    = "Zaitlen, Noah and Kraft, Peter",
+  abstract  = "Heritability, the fraction of phenotypic variation explained by
+               genetic variation, has been estimated for many phenotypes in a
+               range of populations, organisms, and time points. The recent
+               development of efficient genotyping and sequencing technology
+               has led researchers to attempt to identify the genetic variants
+               responsible for the genetic component of phenotype directly via
+               GWAS. The gap between the phenotypic variance explained by GWAS
+               results and those estimated from classical heritability methods
+               has been termed the ``missing heritability problem''. In this
+               work, we examine modern methods for estimating heritability,
+               which use the genotype and sequence data directly. We discuss
+               them in the context of classical heritability methods, the
+               missing heritability problem, and describe their implications
+               for understanding the genetic architecture of complex
+               phenotypes.",
+  journal   = "Hum. Genet.",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  131,
+  number    =  10,
+  pages     = "1655--1664",
+  month     =  oct,
+  year      =  2012,
+  language  = "en"
+}
+
+
+@article{Uffelmann2021,
+  title     = "Genome-wide association studies",
+  author    = "Uffelmann, Emil and Huang, Qin Qin and Munung, Nchangwi Syntia
+               and de Vries, Jantina and Okada, Yukinori and Martin, Alicia R
+               and Martin, Hilary C and Lappalainen, Tuuli and Posthuma,
+               Danielle",
+  journal   = "Nat. Rev. Methods Primers",
+  publisher = "Springer Science and Business Media LLC",
+  volume    =  1,
+  number    =  1,
+  month     =  aug,
+  year      =  2021,
+  copyright = "https://www.springernature.com/gp/researchers/text-and-data-mining",
+  language  = "en"
+}
+
+
+@UNPUBLISHED{SNPbag,
+  title     = "Towards a universal foundation model for biobank-scale human
+               genome variation",
+  author    = "Xu, Augix Guohua and Xu, Yu and Xing, Yiming and Luo, Pengchao
+               and Yang, Jianbo and Bai, Yinqi and Tang, Kun",
+  abstract  = "Abstract Millions of human genomes have been genotyped by
+               national biobanks worldwide. Training large language models
+               (LLM) with this data may lead to a universal model of human
+               genome with tremendous potential. Yet the quadrillions (1015) of
+               nucleotides--- resulting from genome length multiplied by
+               population size---pose formidable challenges for modeling. In
+               this study, we propose a novel AI framework designed to scale
+               with this data and support diverse analytical tasks. To
+               demonstrate this scheme, we developed SNPBag---a foundation
+               model focusing on single nucleotide polymorphism (SNP). With 0.8
+               billion parameters, it is trained on one million synthesized
+               human genomes, corresponding to a total of 6 trillion SNP
+               tokens. SNPBag showed superior performance in benchmarking of
+               multiple tasks. In genotype imputation, it achieves
+               state-of-the-art (SOTA) accuracy. In haplotype phasing, it
+               rivals the best method with a 72-fold speedup. By encoding 6
+               million SNPs per genome into a 0.75 MB embedding, SNPBag enables
+               efficient storage, transfer and downstream applications. In
+               particular, the genome embeddings facilitate rapid ancestry
+               inference across global populations and detection of genetic
+               relationships up to 12th-degree relatives. Collectively, SNPBag
+               introduces a new paradigm for scalable, unified and multitask
+               analysis of the ever-growing human variation data.",
+  journal   = "bioRxiv",
+  month     =  feb,
+  year      =  2025,
+  copyright = "http://creativecommons.org/licenses/by-nc-nd/4.0/"
+}
+
+
+@inproceedings{Ansel_PyTorch_2_Faster_2024,
+author = {Ansel, Jason and Yang, Edward and He, Horace and Gimelshein, Natalia and Jain, Animesh and Voznesensky, Michael and Bao, Bin and Bell, Peter and Berard, David and Burovski, Evgeni and Chauhan, Geeta and Chourdia, Anjali and Constable, Will and Desmaison, Alban and DeVito, Zachary and Ellison, Elias and Feng, Will and Gong, Jiong and Gschwind, Michael and Hirsh, Brian and Huang, Sherlock and Kalambarkar, Kshiteej and Kirsch, Laurent and Lazos, Michael and Lezcano, Mario and Liang, Yanbo and Liang, Jason and Lu, Yinghai and Luk, CK and Maher, Bert and Pan, Yunjie and Puhrsch, Christian and Reso, Matthias and Saroufim, Mark and Siraichi, Marcos Yukio and Suk, Helen and Suo, Michael and Tillet, Phil and Wang, Eikan and Wang, Xiaodong and Wen, William and Zhang, Shunting and Zhao, Xu and Zhou, Keren and Zou, Richard and Mathews, Ajit and Chanan, Gregory and Wu, Peng and Chintala, Soumith},
+booktitle = {29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2 (ASPLOS '24)},
+doi = {10.1145/3620665.3640366},
+month = apr,
+publisher = {ACM},
+title = {{PyTorch 2: Faster Machine Learning Through Dynamic Python Bytecode Transformation and Graph Compilation}},
+url = {https://docs.pytorch.org/assets/pytorch2-2.pdf},
+year = {2024}
+}
+
+
+@UNPUBLISHED{Xu2025-kj,
+  title     = "Towards a universal foundation model for biobank-scale human
+               genome variation",
+  author    = "Xu, Augix Guohua and Xu, Yu and Xing, Yiming and Luo, Pengchao
+               and Yang, Jianbo and Bai, Yinqi and Tang, Kun",
+  abstract  = "Abstract Millions of human genomes have been genotyped by
+               national biobanks worldwide. Training large language models
+               (LLM) with this data may lead to a universal model of human
+               genome with tremendous potential. Yet the quadrillions (1015) of
+               nucleotides--- resulting from genome length multiplied by
+               population size---pose formidable challenges for modeling. In
+               this study, we propose a novel AI framework designed to scale
+               with this data and support diverse analytical tasks. To
+               demonstrate this scheme, we developed SNPBag---a foundation
+               model focusing on single nucleotide polymorphism (SNP). With 0.8
+               billion parameters, it is trained on one million synthesized
+               human genomes, corresponding to a total of 6 trillion SNP
+               tokens. SNPBag showed superior performance in benchmarking of
+               multiple tasks. In genotype imputation, it achieves
+               state-of-the-art (SOTA) accuracy. In haplotype phasing, it
+               rivals the best method with a 72-fold speedup. By encoding 6
+               million SNPs per genome into a 0.75 MB embedding, SNPBag enables
+               efficient storage, transfer and downstream applications. In
+               particular, the genome embeddings facilitate rapid ancestry
+               inference across global populations and detection of genetic
+               relationships up to 12th-degree relatives. Collectively, SNPBag
+               introduces a new paradigm for scalable, unified and multitask
+               analysis of the ever-growing human variation data.",
+  journal   = "bioRxiv",
+  month     =  feb,
+  year      =  2025,
+  copyright = "http://creativecommons.org/licenses/by-nc-nd/4.0/"
+}
+
+
+@ARTICLE{Boue2025,
+  title         = "Deep learning for pedestrians: backpropagation in
+                   Transformers",
+  author        = "Bou{\'e}, Laurent",
+  abstract      = "This document is a follow-up to our previous paper dedicated
+                   to a vectorized derivation of backpropagation in CNNs.
+                   Following the same principles and notations already put in
+                   place there, we now focus on transformer-based
+                   next-token-prediction architectures. To this end, we apply
+                   our lightweight index-free methodology to new types of
+                   layers such as embedding, multi-headed self-attention and
+                   layer normalization. In addition, we also provide gradient
+                   expressions for LoRA layers to illustrate
+                   parameter-efficient fine-tuning. Why bother doing manual
+                   backpropagation when there are so many tools that do this
+                   automatically? Any gap in understanding of how values
+                   propagate forward will become evident when attempting to
+                   differentiate the loss function. By working through the
+                   backward pass manually, we gain a deeper intuition for how
+                   each operation influences the final output. A complete
+                   PyTorch implementation of a minimalistic GPT-like network is
+                   also provided along with analytical expressions for of all
+                   of its gradient updates.",
+  month         =  dec,
+  year          =  2025,
+  copyright     = "http://creativecommons.org/licenses/by/4.0/",
+  archivePrefix = "arXiv",
+  primaryClass  = "cs.LG",
+  eprint        = "2512.23329"
+}
+
+
+
+@ARTICLE{AttentionIsAllYouNeed,
+  title         = "Attention is all you need",
+  author        = "Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and
+                   Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N and
+                   Kaiser, Lukasz and Polosukhin, Illia",
+  abstract      = "The dominant sequence transduction models are based on
+                   complex recurrent or convolutional neural networks in an
+                   encoder-decoder configuration. The best performing models
+                   also connect the encoder and decoder through an attention
+                   mechanism. We propose a new simple network architecture, the
+                   Transformer, based solely on attention mechanisms,
+                   dispensing with recurrence and convolutions entirely.
+                   Experiments on two machine translation tasks show these
+                   models to be superior in quality while being more
+                   parallelizable and requiring significantly less time to
+                   train. Our model achieves 28.4 BLEU on the WMT 2014
+                   English-to-German translation task, improving over the
+                   existing best results, including ensembles by over 2 BLEU.
+                   On the WMT 2014 English-to-French translation task, our
+                   model establishes a new single-model state-of-the-art BLEU
+                   score of 41.8 after training for 3.5 days on eight GPUs, a
+                   small fraction of the training costs of the best models from
+                   the literature. We show that the Transformer generalizes
+                   well to other tasks by applying it successfully to English
+                   constituency parsing both with large and limited training
+                   data.",
+  month         =  aug,
+  year          =  2023,
+  copyright     = "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+  archivePrefix = "arXiv",
+  primaryClass  = "cs.CL",
+  eprint        = "1706.03762"
+}
+
+
+@ARTICLE{ResNet,
+  title         = "Deep residual learning for image recognition",
+  author        = "He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun,
+                   Jian",
+  abstract      = "Deeper neural networks are more difficult to train. We
+                   present a residual learning framework to ease the training
+                   of networks that are substantially deeper than those used
+                   previously. We explicitly reformulate the layers as learning
+                   residual functions with reference to the layer inputs,
+                   instead of learning unreferenced functions. We provide
+                   comprehensive empirical evidence showing that these residual
+                   networks are easier to optimize, and can gain accuracy from
+                   considerably increased depth. On the ImageNet dataset we
+                   evaluate residual nets with a depth of up to 152 layers---8x
+                   deeper than VGG nets but still having lower complexity. An
+                   ensemble of these residual nets achieves 3.57\% error on the
+                   ImageNet test set. This result won the 1st place on the
+                   ILSVRC 2015 classification task. We also present analysis on
+                   CIFAR-10 with 100 and 1000 layers. The depth of
+                   representations is of central importance for many visual
+                   recognition tasks. Solely due to our extremely deep
+                   representations, we obtain a 28\% relative improvement on
+                   the COCO object detection dataset. Deep residual nets are
+                   foundations of our submissions to ILSVRC \& COCO 2015
+                   competitions, where we also won the 1st places on the tasks
+                   of ImageNet detection, ImageNet localization, COCO
+                   detection, and COCO segmentation.",
+  month         =  dec,
+  year          =  2015,
+  copyright     = "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+  archivePrefix = "arXiv",
+  primaryClass  = "cs.CV",
+  eprint        = "1512.03385"
+}
+
+@ARTICLE{LayerNorm,
+  title         = "Layer Normalization",
+  author        = "Ba, Jimmy Lei and Kiros, Jamie Ryan and Hinton, Geoffrey E",
+  abstract      = "Training state-of-the-art, deep neural networks is
+                   computationally expensive. One way to reduce the training
+                   time is to normalize the activities of the neurons. A
+                   recently introduced technique called batch normalization
+                   uses the distribution of the summed input to a neuron over a
+                   mini-batch of training cases to compute a mean and variance
+                   which are then used to normalize the summed input to that
+                   neuron on each training case. This significantly reduces the
+                   training time in feed-forward neural networks. However, the
+                   effect of batch normalization is dependent on the mini-batch
+                   size and it is not obvious how to apply it to recurrent
+                   neural networks. In this paper, we transpose batch
+                   normalization into layer normalization by computing the mean
+                   and variance used for normalization from all of the summed
+                   inputs to the neurons in a layer on a single training case.
+                   Like batch normalization, we also give each neuron its own
+                   adaptive bias and gain which are applied after the
+                   normalization but before the non-linearity. Unlike batch
+                   normalization, layer normalization performs exactly the same
+                   computation at training and test times. It is also
+                   straightforward to apply to recurrent neural networks by
+                   computing the normalization statistics separately at each
+                   time step. Layer normalization is very effective at
+                   stabilizing the hidden state dynamics in recurrent networks.
+                   Empirically, we show that layer normalization can
+                   substantially reduce the training time compared with
+                   previously published techniques.",
+  month         =  jul,
+  year          =  2016,
+  copyright     = "http://arxiv.org/licenses/nonexclusive-distrib/1.0/",
+  archivePrefix = "arXiv",
+  primaryClass  = "stat.ML",
+  eprint        = "1607.06450"
+}
+
+@article{GELU,
+  author  = {Hendrycks, Dan and Gimpel, Kevin},
+  title   = {Gaussian Error Linear Units ({GELUs})},
+  journal = {arXiv preprint arXiv:1606.08415},
+  year    = {2016}
+}
+
+@article{Dropout,
+  author  = {Srivastava, Nitish and Hinton, Geoffrey and Krizhevsky, Alex and Sutskever, Ilya and Salakhutdinov, Ruslan},
+  title   = {Dropout: A Simple Way to Prevent Neural Networks from Overfitting},
+  journal = {Journal of Machine Learning Research},
+  volume  = {15},
+  number  = {56},
+  pages   = {1929--1958},
+  year    = {2014}
+}
+
+@inproceedings{Devlin2019,
+  author    = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+  title     = {{BERT}: Pre-training of Deep Bidirectional Transformers for Language Understanding},
+  booktitle = {Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics (NAACL-HLT)},
+  year      = {2019},
+  pages     = {4171--4186}
+}
+
+@article{Boue2025_backprop,
+  author  = {Boué, Laurent},
+  title   = {Deep Learning for Pedestrians: Backpropagation in Transformers},
+  journal = {arXiv preprint arXiv:2512.23329},
+  year    = {2025}
+}
+
+@inproceedings{Adam,
+  author    = {Kingma, Diederik P. and Ba, Jimmy},
+  title     = {Adam: A Method for Stochastic Optimization},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2015}
+}
+
+@inproceedings{AdamW,
+  author    = {Loshchilov, Ilya and Hutter, Frank},
+  title     = {Decoupled Weight Decay Regularization},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2019}
+}
+
+@article{Gholamalinezhad2020,
+  title   = {Pooling Methods in Deep Neural Networks, a Review},
+  author  = {Gholamalinezhad, Hossein and Khosravi, Hossein},
+  journal = {arXiv preprint arXiv:2009.07485},
+  year    = {2020}
+}
+
+@misc{PyTorchDropout,
+  title        = {torch.nn.Dropout},
+  author       = {{PyTorch Contributors}},
+  year         = {2025},
+  howpublished = {\url{https://docs.pytorch.org/docs/2.12/generated/torch.nn.Dropout.html}},
+  note         = {Accessed: 2026-05-20}
+}
+
+@article{Srivastava2014dropout,
+  author  = {Srivastava, Nitish and Hinton, Geoffrey and Krizhevsky, Alex and Sutskever, Ilya and Salakhutdinov, Ruslan},
+  title   = {Dropout: A Simple Way to Prevent Neural Networks from Overfitting},
+  journal = {Journal of Machine Learning Research},
+  year    = {2014},
+  volume  = {15},
+  number  = {1},
+  pages   = {1929--1958}
+}
+
+@ARTICLE{Fawcett2006,
+  title     = "An introduction to {ROC} analysis",
+  author    = "Fawcett, Tom",
+  abstract  = "Receiver operating characteristics (ROC) graphs are useful for
+               organizing classifiers and visualizing their performance. ROC
+               graphs are commonly used in medical decision making, and in
+               recent years have been used increasingly in machine learning and
+               data mining research. Although ROC graphs are apparently simple,
+               there are some common misconceptions and pitfalls when using
+               them in practice. The purpose of this article is to serve as an
+               introduction to ROC graphs and as a guide for using them in
+               research.",
+  journal   = "Pattern Recognit. Lett.",
+  publisher = "Elsevier BV",
+  volume    =  27,
+  number    =  8,
+  pages     = "861--874",
+  month     =  jun,
+  year      =  2006,
+  language  = "en"
+}
+
+@inproceedings{Smith2018,
+    title={A Bayesian Perspective on Generalization and Stochastic Gradient Descent},
+    author={Smith, Samuel L. and Le, Quoc V.},
+    booktitle={International Conference on Learning Representations},
+    year={2018}
+}
+
+@article{BaldingNichols1995,
+  author  = {Balding, David J. and Nichols, Richard A.},
+  title   = {A Method for Quantifying Differentiation Between Populations at Multi-Allelic Loci and Its Implications for Investigating Identity and Paternity},
+  journal = {Genetica},
+  volume  = {96},
+  number  = {1--2},
+  pages   = {3--12},
+  year    = {1995},
+  doi     = {10.1007/BF01441146}
+}
+
+@article{Wharrie2023,
+  author    = {Wharrie, Sophie and Yang, Zhiyu and Raj, Vishnu and Monti, Remo and Gupta, Rahul and Wang, Ying and Martin, Alicia R. and O'Connor, Luke J. and Kaski, Samuel and Marttinen, Pekka and Palamara, Pier Francesco and Lippert, Christoph and Ganna, Andrea},
+  title     = {{HAPNEST}: efficient, large-scale generation and evaluation of synthetic datasets for genotypes and phenotypes},
+  journal   = {Bioinformatics},
+  volume    = {39},
+  number    = {9},
+  pages     = {btad535},
+  year      = {2023},
+  doi       = {10.1093/bioinformatics/btad535},
+}
+
+@book{LynchWalsh1998,
+  author    = {Lynch, Michael and Walsh, Bruce},
+  title     = {Genetics and Analysis of Quantitative Traits},
+  publisher = {Sinauer Associates},
+  address   = {Sunderland, MA},
+  year      = {1998},
+  isbn      = {978-0878934812},
+}
+
+@article{Fisher1918,
+  author    = {Fisher, R. A.},
+  title     = {The correlation between relatives on the supposition of {M}endelian inheritance},
+  journal   = {Transactions of the Royal Society of Edinburgh},
+  volume    = {52},
+  number    = {2},
+  pages     = {399--433},
+  year      = {1918},
+  doi       = {10.1017/S0080456800012163},
+}
+
+@article{Dempster1950,
+  author    = {Dempster, Everett R. and Lerner, I. Michael},
+  title     = {Heritability of threshold characters},
+  journal   = {Genetics},
+  volume    = {35},
+  number    = {2},
+  pages     = {212--236},
+  year      = {1950},
+}
+
+@article{Falconer1965,
+  author    = {Falconer, D. S.},
+  title     = {The inheritance of liability to certain diseases, estimated from the incidence among relatives},
+  journal   = {Annals of Human Genetics},
+  volume    = {29},
+  number    = {1},
+  pages     = {51--76},
+  year      = {1965},
+  doi       = {10.1111/j.1469-1809.1965.tb00500.x},
+}
+
+@inproceedings{Rajbhandari2020,
+  author    = {Rajbhandari, Samyam and Rasley, Jeff and Ruwase, Olatunji and He, Yuxiong},
+  title     = {{ZeRO}: Memory Optimizations Toward Training Trillion Parameter Models},
+  booktitle = {SC20: International Conference for High Performance Computing, Networking, Storage and Analysis},
+  pages     = {1--16},
+  year      = {2020},
+  doi       = {10.1109/SC41405.2020.00024},
+}
+
+@article{Korthikanti2022,
+  author  = {Korthikanti, Vijay Anand and Casper, Jared and Lym, Sangkug and McAfee, Lawrence and Andersch, Michael and Shoeybi, Mohammad and Catanzaro, Bryan},
+  title   = {Reducing Activation Recomputation in Large Transformer Models},
+  journal = {arXiv preprint arXiv:2205.05198},
+  year    = {2022},
+}
+
+@article{Shoeybi2019,
+  author  = {Shoeybi, Mohammad and Patwary, Mostofa and Puri, Raul and LeGresley, Patrick and Casper, Jared and Catanzaro, Bryan},
+  title   = {Megatron-{LM}: Training Multi-Billion Parameter Language Models Using Model Parallelism},
+  journal = {arXiv preprint arXiv:1909.08053},
+  year    = {2019},
+}
+
+@article{Jiang2019,
+   author  = {Jiang, Longda and Zheng, Zhili and Qi, Ting and others},
+   title   = {A resource-efficient tool for mixed model association analysis of large-scale data},
+   journal = {Nature Genetics},
+   volume  = {51},
+   pages   = {1749--1755},
+   year    = {2019},
+   doi     = {10.1038/s41588-019-0530-8},
+ }
+
+ @article{Mbatchou2021,
+   author  = {Mbatchou, Joelle and Barnard, Leland and Backman, Joshua and others},
+   title   = {Computationally efficient whole-genome regression for quantitative and binary traits},
+   journal = {Nature Genetics},
+   volume  = {53},
+   pages   = {1097--1103},
+   year    = {2021},
+   doi     = {10.1038/s41588-021-00870-7},
+ }
+
+ @article{Loh2015,
+   author  = {Loh, Po-Ru and Tucker, George and Bulik-Sullivan, Brendan K. and others},
+   title   = {Efficient {B}ayesian mixed-model analysis increases association power in large cohorts},
+   journal = {Nature Genetics},
+   volume  = {47},
+   number  = {3},
+   pages   = {284--290},
+   year    = {2015},
+   doi     = {10.1038/ng.3190},
+ }
+
+ @article{Yang2014,
+   author  = {Yang, Jian and Zaitlen, Noah A. and Goddard, Michael E. and Visscher, Peter M. and Price, Alkes L.},
+   title   = {Advantages and pitfalls in the application of mixed-model association methods},
+   journal = {Nature Genetics},
+   volume  = {46},
+   number  = {2},
+   pages   = {100--106},
+   year    = {2014},
+   doi     = {10.1038/ng.2876},
+ }
+
+ @article{Yang2011,
+   author  = {Yang, Jian and Lee, S. Hong and Goddard, Michael E. and Visscher, Peter M.},
+   title   = {{GCTA}: a tool for genome-wide complex trait analysis},
+   journal = {American Journal of Human Genetics},
+   volume  = {88},
+   number  = {1},
+   pages   = {76--82},
+   year    = {2011},
+   doi     = {10.1016/j.ajhg.2010.11.011},
+ }
+
+ @article{GemanGeman1984,
+   author  = {Geman, Stuart and Geman, Donald},
+   title   = {Stochastic relaxation, {G}ibbs distributions, and the {B}ayesian restoration of images},
+   journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+   volume  = {PAMI-6},
+   number  = {6},
+   pages   = {721--741},
+   year    = {1984},
+   doi     = {10.1109/TPAMI.1984.4767596},
+ }
+
+@ARTICLE{Majumdar2018,
+  title     = "An efficient Bayesian meta-analysis approach for studying
+               cross-phenotype genetic associations",
+  author    = "Majumdar, Arunabha and Haldar, Tanushree and Bhattacharya,
+               Sourabh and Witte, John S",
+  abstract  = "Simultaneous analysis of genetic associations with multiple
+               phenotypes may reveal shared genetic susceptibility across
+               traits (pleiotropy). For a locus exhibiting overall pleiotropy,
+               it is important to identify which specific traits underlie this
+               association. We propose a Bayesian meta-analysis approach
+               (termed CPBayes) that uses summary-level data across multiple
+               phenotypes to simultaneously measure the evidence of
+               aggregate-level pleiotropic association and estimate an optimal
+               subset of traits associated with the risk locus. This method
+               uses a unified Bayesian statistical framework based on a spike
+               and slab prior. CPBayes performs a fully Bayesian analysis by
+               employing the Markov Chain Monte Carlo (MCMC) technique Gibbs
+               sampling. It takes into account heterogeneity in the size and
+               direction of the genetic effects across traits. It can be
+               applied to both cohort data and separate studies of multiple
+               traits having overlapping or non-overlapping subjects.
+               Simulations show that CPBayes can produce higher accuracy in the
+               selection of associated traits underlying a pleiotropic signal
+               than the subset-based meta-analysis ASSET. We used CPBayes to
+               undertake a genome-wide pleiotropic association study of 22
+               traits in the large Kaiser GERA cohort and detected six
+               independent pleiotropic loci associated with at least two
+               phenotypes. This includes a locus at chromosomal region 1q24.2
+               which exhibits an association simultaneously with the risk of
+               five different diseases: Dermatophytosis, Hemorrhoids, Iron
+               Deficiency, Osteoporosis and Peripheral Vascular Disease. We
+               provide an R-package 'CPBayes' implementing the proposed method.",
+  journal   = "PLoS Genet.",
+  publisher = "Public Library of Science (PLoS)",
+  volume    =  14,
+  number    =  2,
+  pages     = "e1007139",
+  month     =  feb,
+  year      =  2018,
+  copyright = "http://creativecommons.org/licenses/by/4.0/",
+  language  = "en"
+}
+
+
+@article{Torkamani2018,
+  author  = {Torkamani, Ali and Wineinger, Nathan E. and Topol, Eric J.},
+  title   = {The personal and clinical utility of polygenic risk scores},
+  journal = {Nature Reviews Genetics},
+  volume  = {19},
+  number  = {9},
+  pages   = {581--590},
+  year    = {2018},
+  doi     = {10.1038/s41576-018-0018-x}
+}
+
+@article{Visscher2017,
+  author  = {Visscher, Peter M. and Wray, Naomi R. and Zhang, Qian and
+             Sklar, Pamela and McCarthy, Mark I. and Brown, Matthew A.
+             and Yang, Jian},
+  title   = {10 Years of {GWAS} Discovery: Biology, Function, and
+             Translation},
+  journal = {The American Journal of Human Genetics},
+  volume  = {101},
+  number  = {1},
+  pages   = {5--22},
+  year    = {2017},
+  doi     = {10.1016/j.ajhg.2017.06.005}
+}
+
+@article{Cordell2009,
+  author  = {Cordell, Heather J.},
+  title   = {Detecting gene--gene interactions that underlie human
+             diseases},
+  journal = {Nature Reviews Genetics},
+  volume  = {10},
+  number  = {6},
+  pages   = {392--404},
+  year    = {2009},
+  doi     = {10.1038/nrg2579}
 }

@@ -9,15 +9,16 @@
 
 % Some top level variables that are used to automatically input title, authors,
 % etc. in the title page and front page.
-\def \projecttitle       {Project Main Title}
-\def \projectsubtitle    {Project Subtitle}
-\def \projecttheme       {Project Theme}
-\def \projectdegree      {Mathematics}  % or Mathematics-Economics/Technology
+\def \projecttitle       {Adapting SNPbag for Phenotype Prediction:
+A Transformer-Based Approach to Polygenic Risk}
+\def \projectsubtitle    {}
+\def \projecttheme       {Computational Statistics }
+\def \projectdegree      {Mathematical Statistics}  % or Mathematics-Economics/Technology
 \def \projectperiod      {September 2025 - May 2026}
-\def \projectnumber      {P1}
-\def \projectgroup       {X123}
+\def \projectnumber      {Master’s thesis}
+\def \projectgroup       {Group MS10-01}
 \def \projectauthors     {
-  Mads Munk Nielsen \orcidlink{0009-0002-8095-560X} \href{https://www.linkedin.com/in/madsmunknielsen/}{\faLinkedinSquare} \href{https://github.com/MadsMunkNielsen}{\faGithub} \href{https://vbn.aau.dk/da/persons/mads-nielsen}{\includegraphics[height=0.33cm]{incl/pre/ext/Aaulogo.png}} 
+  Mads Munk Nielsen \href{https://github.com/MadsMunkNielsen}{\faGithub} 
 }
 \def \projectsupervisors {
   Rasmus Waagepetersen
@@ -44,6 +45,8 @@
 \frontmatter
 \include{incl/misc/frontpage}
 \include{incl/misc/titlepage}
+\include{incl/misc/preface}
+\include{incl/misc/Signatures}
 \include{incl/misc/contents}
 
 % The main matter is were the bulk of your work goes. Pages and headings have
@@ -54,18 +57,22 @@
 % chapter. The \include command forces a page break and inserts the contents of
 % the input file.
 
+\include{incl/main/Introdouction}
 \include{incl/main/Clinical}
 \include{incl/main/Theory}
+\include{incl/main/SimStudy}
+\include{incl/main/Discussion}
+\include{incl/main/Conclusion}
 % \include{incl/main/example2}
 % ...
 
 % Appendices are included inside an appendices block, which enumerates chapters
 % with letters, starting from A, instead of numbers.
-\begin{appendices}
-\include{incl/app/AppendixA.tex}
-  % \include{incl/app/appendix2}
-  % ..
-\end{appendices}
+% \begin{appendices}
+% \include{incl/app/AppendixA.tex}
+%   % \include{incl/app/appendix2}
+%   % ..
+% \end{appendices}
 
 % The backmatter is for extra stuff. Headings are not numbered.
 \backmatter
@@ -73,6 +80,7 @@
 % Automatic list of references, based on which references in the literature
 % database files were referenced throughout the document.
 \bibliographystyle{apalike}
+\label{bib}
 \bibliography{
   incl/bib/books,
   incl/bib/articles,

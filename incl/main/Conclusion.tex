@@ -1,0 +1,41 @@
+\chapter{Conclusion}
+\label{ch:conclusion}
+
+This thesis developed SNPbag, a transformer-based model for phenotype
+prediction from genotype data, and compared it against LDpred2-auto on
+simulated binary phenotypes. The evaluation used $100000$ synthetic
+individuals from the HAPNEST project with $14000$ SNPs from
+chromosome~22 and phenotypes simulated under the logistic disease model
+of \citet{Majumdar2018}.
+
+The pre-training phase demonstrated that transformer-based self-supervised
+learning can capture meaningful genomic structure. Masked genotype
+prediction accuracy improved consistently from $84.18\%$ to $90.19\%$ as
+the training set grew from $1000$ to $100000$ individuals, with
+training and validation losses remaining close throughout, indicating no
+overfitting. The continued improvement at $100000$ individuals suggests
+the model has not yet saturated.
+
+Despite effective pre-training, neither method achieved strong phenotype
+prediction. SNPbag obtained an AUC of $0.54$ and LDpred2-auto an AUC of
+$0.51$, both only marginally above the random baseline of $0.5$. Several
+factors explain this. SNPbag was fine-tuned for a single epoch with a
+frozen encoder, meaning the representations could not adapt to the
+phenotype prediction task and the MLP had to learn the entire mapping from
+fixed features in one pass. LDpred2-auto was designed for genome-wide
+summary statistics but operated on only $14000$ SNPs from a single
+chromosome, capturing a small fraction of the genetic variation it would
+normally leverage. More fundamentally, genotype-based prediction is bounded
+by the heritability $h^2$ of the trait, so a substantial fraction of the
+phenotypic variation is driven by environmental factors that no genotype
+model can capture. The combination of limited genomic coverage, restricted
+fine-tuning, and the inherent heritability ceiling makes the near-random
+performance unsurprising.
+
+The key conclusion is that the bottleneck is scale, not architecture. The
+pre-training results show that the transformer learns useful genomic
+representations, and SNPbag achieved a marginally higher AUC than
+LDpred2-auto despite operating under severe constraints. With greater
+computational resources, future work could extend the model to longer
+sequences, include more training individuals, and fine-tune the full
+encoder, each of which addresses one of the limitations identified above.

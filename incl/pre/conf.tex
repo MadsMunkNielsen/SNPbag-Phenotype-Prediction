@@ -19,9 +19,9 @@
 % Headers and footers ----------------------------------------------------------
 % http://mirrors.dotsrc.org/ctan/macros/latex/contrib/fancyhdr/fancyhdr.pdf
 \fancyhead{}                            % clear default header fields
-\fancyhead[LE,RO]{Group \projectgroup}  % left on even and right on odd
-\fancyhead[RE]{\leftmark}               % right on even
-\fancyhead[LO]{\rightmark}              % left on odd
+\fancyhead[LE,RO]{\scriptsize\projectgroup}
+\fancyhead[RE]{\scriptsize\nouppercase{\leftmark}}
+\fancyhead[LO]{\scriptsize\nouppercase{\rightmark}}         % left on odd
 \fancyfoot{}                            % clear default footer fields
 \fancyfoot[CE,CO]{\thepage}             % centered page numbers
 \pagestyle{fancy}                       % activate fancy style

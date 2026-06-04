@@ -1,202 +1,1286 @@
-\chapter{Bidirectional Encoder Representations from Transformers}
+\chapter{Architecture and Training of SNPbag for Phenotype Prediction}
+\label{ch:SNPbag}
 
-This chapter focuses on the architecture of DNABERT, a pre-trained Bidirectional Encoder Representations from Transformers model designed for genomic sequences, see Figure \ref{fig: architecture DNAbert}. DNABERT extends the original BERT framework first developed for natural language processing by replacing words with DNA k-mers, enabling the model to learn representations of nucleotide sequences, that can be used for predictive genomic tasks.
+This chapter describes the architecture of SNPbag \citep{SNPbag} and explains how it is adapted for phenotype prediction. The chapter is structured to follow the data through the model: from raw genotypes to embeddings, through the encoder, and into a multi-layer perceptron (MLP) used for either predicting masked genotypes or phenotypes. The architecture of the adapted model is seen in \autoref{fig:SNPbag architecture}.
 
-Initially, the chapter begins by describing how raw DNA sequences are divided into overlapping k-mers, which serve as the fundamental input units. It then explains the masking procedure used during pre-training, where a subset of k-mers is hidden to force the model to infer them from surrounding context. Next, the construction of token, positional, and segment embeddings is presented. These embeddings encode the k-mers before being passed into the transformer architecture, which is composed of stacked sublayers including multi-head self-attention, feed-forward networks, and layer normalization. The resulting hidden states are then examined, both in their role for sequence-level classification (predicting global properties of entire DNA sequences) and for token-level classification (recovering masked k-mers during pre-training).
+Throughout this chapter, the model contains learnable parameters such
+as weight matrices and bias vectors. The reader should not be concerned
+with how these parameters are obtained at this stage, they are treated as given. How the parameters are learned through training is described in \autoref{sec:training}.
 
-The chapter then examins the training process. The pre-training phase is outlined, showing how the model learns generalizable representations of DNA sequences. The chapter also details how a pre-trained DNABERT can be fine-tuned for specific predictive tasks.
+The first step in the model is to map genotypes and loci into continuous vector representations known as embeddings. For each position in the sequence, the genotype and the corresponding locus are each mapped to a separate learned vector in $\mathbb{R}^{512}$, and the two vectors are combined to form a single input representation. Each such position is referred to as a token, that is a single discrete input element in the sequence. This embedding procedure is described in
+\autoref{sec: Tokenization and embedding}.
 
-Finally, the chapter introduces the evaluation metrics used to assess model performance. Standard metrics such as accuracy, precision, recall, F1-score, and ROC curves are described, along with their relevance for both sequence-level and token-level tasks.
-\newpage
+The embedded sequence serves as input for the Bidirectional encoder representations from transformers (BERT)-based transformer encoder described in \autoref{sec: BERT}. The encoder consists of $L = 16$ stacked transformer layers, each applying multi-head self-attention followed by a feed-forward network. Through these layers, each token's representation is progressively refined to incorporate information from the entire genomic context, capturing both linear and nonlinear associations between SNPs.
+
+The output from the BERT encoder is used as input to two different MLPs: one used for masked genotype prediction during pre-training, and one used for phenotype prediction during fine-tuning. During pre-training, the model is trained using masked genotype prediction, where genotype tokens are randomly masked with a fixed probability and the model learns to reconstruct the original genotypes from their surrounding genomic context. To achieve this, an MLP maps the encoder output at each position to three logits, one for each genotype, $\{0,1,2\}$. The model parameters are then optimized by minimizing a cross-entropy loss computed from these logits and the corresponding true genotype. By training the model end-to-end, this prediction task updates both the genotype prediction MLP and the encoder, encouraging the encoder to learn representations that capture dependencies between SNPs.
+
+Following pre-training, the model is adapted for phenotype prediction. The pre-trained encoder is reused, but the masked genotype prediction MLP is replaced by a separate phenotype prediction MLP. Since the phenotype is defined for an entire individual rather than for a single SNP position, the encoder outputs are first aggregated across the sequence dimension to form one representation per individual. This individual-level representation is then passed to the phenotype MLP, which maps it to a single logit used for binary phenotype prediction. Both prediction MLPs are described in \autoref{sec:prediction_heads}.
+
+The training procedure is described in \autoref{sec:training}. This includes the construction of training, validation, and test splits, the use of batches and epochs, the computation of gradients by backpropagation, and the parameter updates performed by the AdamW optimizer. Finally, \autoref{sec:evaluation} describes the metrics used to assess masked genotype prediction during pre-training and phenotype prediction during fine-tuning.
+
 \begin{figure}[H]
 \centering
-\resizebox{1\textwidth}{!}{%
-\begin{circuitikz}
-\tikzstyle{every node}=[font=\large]
-\draw (8.25,12) to[short] (8.25,12);
-\draw [ fill={rgb,255:red,224; green,224; blue,224} , line width=0.8pt , rounded corners = 20.4] (-6.75,-23.25) rectangle (-0.25,-26.5);
-\draw [ fill={rgb,255:red,240; green,240; blue,240} , line width=0.8pt , rounded corners = 111.0] (15,-3) rectangle (0,-19.25);
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[every node/.style={font=\Large}]
 
+% --- Colour definitions ---
+\definecolor{NNOriginal}{HTML}{001965}
+\definecolor{NNOriginalFill}{HTML}{8090B2}
+\definecolor{NNInput}{HTML}{005AD2}
+\definecolor{NNInputFill}{HTML}{809DD9}
+\definecolor{NNEmbed}{HTML}{3B97DE}
+\definecolor{NNEmbedFill}{HTML}{8DC3EC}
+\definecolor{NNMaskGrey}{HTML}{C0C0C0}
+\definecolor{NNOceanGreen}{HTML}{00857C}
+\definecolor{NNGreenLight}{HTML}{D9F0EE}
+\definecolor{NNGreenMid}{HTML}{80C2BD}
+\definecolor{NNGreenDark}{HTML}{006B63}
+\definecolor{NNDecoder}{HTML}{E6553F}
+\definecolor{NNDecoderLight}{HTML}{F0B8AF}
 
-\node [font=\LARGE] at (-8.75,9) {\textbf{Original Sequence}};
+% =============================================
+% ORIGINAL SEQUENCE
+% =============================================
+\node [font=\LARGE, Black, anchor=east] at (-2.5,14.25) {\textbf{Original Sequence}};
+
+% SNP ID row
+\node [font=\large, Black, anchor=east] at (-2.25,14.875) {\textbf{SNP ID}};
+\draw [fill=NNOriginalFill, line width=0.8pt] (-2,15.5) rectangle node {\LARGE $P_1$} (0.5,14.25);
+\draw [fill=NNOriginalFill, line width=0.8pt] (0.75,15.5) rectangle node {\LARGE $P_2$} (3.25,14.25);
+\draw [fill=NNOriginalFill, line width=0.8pt] (3.5,15.5) rectangle node {\LARGE $P_3$} (6,14.25);
+\node [font=\LARGE] at (7.5,15) {\textbf{$\cdots$}};
+\draw [fill=NNOriginalFill, line width=0.8pt] (9,15.5) rectangle node {\LARGE $P_{M\text{-}2}$} (11.5,14.25);
+\draw [fill=NNOriginalFill, line width=0.8pt] (11.75,15.5) rectangle node {\LARGE $P_{M\text{-}1}$} (14.25,14.25);
+\draw [fill=NNOriginalFill, line width=0.8pt] (14.5,15.5) rectangle node {\LARGE $P_M$} (17,14.25);
+
+% Genotype row
+\node [font=\large, Black, anchor=east] at (-2.25,13.625) {\textbf{Genotype}};
+\draw [fill=NNOriginalFill, line width=0.8pt] (-2,14.25) rectangle node {\LARGE $G_1$} (0.5,13);
+\draw [fill=NNOriginalFill, line width=0.8pt] (0.75,14.25) rectangle node {\LARGE $G_2$} (3.25,13);
+\draw [fill=NNOriginalFill, line width=0.8pt] (3.5,14.25) rectangle node {\LARGE $G_3$} (6,13);
+\node [font=\LARGE] at (7.5,13.5) {\textbf{$\cdots$}};
+\draw [fill=NNOriginalFill, line width=0.8pt] (9,14.25) rectangle node {\LARGE $G_{M\text{-}2}$} (11.5,13);
+\draw [fill=NNOriginalFill, line width=0.8pt] (11.75,14.25) rectangle node {\LARGE $G_{M\text{-}1}$} (14.25,13);
+\draw [fill=NNOriginalFill, line width=0.8pt] (14.5,14.25) rectangle node {\LARGE $G_M$} (17,13);
+
+% Arrow: Original -> Mask
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,12.75) -- (7.5,12);
+\node [font=\Large, NNInput] at (10.75,12.4) {\textbf{Mask in pre-training}};
+
+% =============================================
+% MASKED INPUT SEQUENCE
+% =============================================
+\node [font=\LARGE, Black, anchor=east] at (-2.5,10.75) {\textbf{Input Sequence}};
+
+% SNP ID row (unchanged)
+\node [font=\large, Black, anchor=east] at (-2.25,11.375) {\textbf{SNP ID}};
+\draw [fill=NNInputFill, line width=0.8pt] (-2,12) rectangle node {\LARGE $P_1$} (0.5,10.75);
+\draw [fill=NNInputFill, line width=0.8pt] (0.75,12) rectangle node {\LARGE $P_2$} (3.25,10.75);
+\draw [fill=NNInputFill, line width=0.8pt] (3.5,12) rectangle node {\LARGE $P_3$} (6,10.75);
+\node [font=\LARGE] at (7.5,11.5) {\textbf{$\cdots$}};
+\draw [fill=NNInputFill, line width=0.8pt] (9,12) rectangle node {\LARGE $P_{M\text{-}2}$} (11.5,10.75);
+\draw [fill=NNInputFill, line width=0.8pt] (11.75,12) rectangle node {\LARGE $P_{M\text{-}1}$} (14.25,10.75);
+\draw [fill=NNInputFill, line width=0.8pt] (14.5,12) rectangle node {\LARGE $P_M$} (17,10.75);
+
+% Genotype row (masked)
+\node [font=\large, Black, anchor=east] at (-2.25,10.125) {\textbf{Genotype}};
+\draw [fill=NNInputFill, line width=0.8pt] (-2,10.75) rectangle node {\LARGE $G_1$} (0.5,9.5);
+\draw [fill=NNMaskGrey, line width=0.8pt] (0.75,10.75) rectangle node {\LARGE \texttt{[MASK]}} (3.25,9.5);
+\draw [fill=NNMaskGrey, line width=0.8pt] (3.5,10.75) rectangle node {\LARGE \texttt{[MASK]}} (6,9.5);
+\node [font=\LARGE] at (7.5,10.25) {\textbf{$\cdots$}};
+\draw [fill=NNMaskGrey, line width=0.8pt] (9,10.75) rectangle node {\LARGE \texttt{[MASK]}} (11.5,9.5);
+\draw [fill=NNInputFill, line width=0.8pt] (11.75,10.75) rectangle node {\LARGE $G_{M\text{-}1}$} (14.25,9.5);
+\draw [fill=NNMaskGrey, line width=0.8pt] (14.5,10.75) rectangle node {\LARGE \texttt{[MASK]}} (17,9.5);
+
+% Arrow: Masked -> Embedding
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,9.25) -- (7.5,8.5);
+\node [font=\Large, NNEmbed] at (9.75,8.75) {\textbf{Embedding}};
+
+% =============================================
+% TOKEN EMBEDDING ROW
+% =============================================
+\node [font=\LARGE, Black, anchor=east] at (-2.5,7.5) {\textbf{Token Embedding}};
+
+\draw [fill=NNEmbedFill, line width=0.8pt] (-2,8.25) rectangle node {\LARGE $E_{1}$} (0.5,7);
+\draw [fill=NNEmbedFill, line width=0.8pt] (0.75,8.25) rectangle node {\LARGE $E_{2}$} (3.25,7);
+\draw [fill=NNEmbedFill, line width=0.8pt] (3.5,8.25) rectangle node {\LARGE $E_{3}$} (6,7);
+\node [font=\LARGE] at (7.5,7.5) {\textbf{$\cdots$}};
+\draw [fill=NNEmbedFill, line width=0.8pt] (9,8.25) rectangle node {\LARGE $E_{M-2}$} (11.5,7);
+\draw [fill=NNEmbedFill, line width=0.8pt] (11.75,8.25) rectangle node {\LARGE $E_{M-1}$} (14.25,7);
+\draw [fill=NNEmbedFill, line width=0.8pt] (14.5,8.25) rectangle node {\LARGE $E_{M}$} (17,7);
+
+% Arrow: Embedding -> Encoder
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,6.75) -- (7.5,6);
+
+% =============================================
+% TRANSFORMER ENCODER BLOCK
+% =============================================
+
+% BERT label
+\node [font=\LARGE, Black, anchor=east] at (-0.5,-0.75) {\textbf{BERT Encoder}};
+
+% Grey background with large round corners
+\draw [fill={rgb,255:red,240;green,240;blue,240}, line width=0.8pt, rounded corners=111.0] (0,-7.5) rectangle (15,5.75);
+
+% Multi-Head Self-Attention
+\draw [fill=NNGreenLight, line width=0.8pt, rounded corners=15] (4.25,5.25) rectangle node {\Large \textbf{Multi-Head Self-Attention}} (11,4.25);
+
+% Arrow
 \draw [line width=1.1pt, ->, >=Stealth] (7.5,4) -- (7.5,3.25);
-\node [font=\LARGE] at (-8.5,6) {\textbf{Input Sequence}};
-\node [font=\LARGE] at (-1,7.5) {};
-\node [font=\LARGE] at (-1,7.5) {};
-\node [font=\LARGE] at (-1,7.5) {};
-\node [font=\LARGE] at (0,7.5) {};
-\node [font=\LARGE] at (-0.75,7) {};
-\node [font=\LARGE] at (-0.5,7) {};
-\node [font=\LARGE] at (-0.5,7) {};
-\node [font=\LARGE] at (-0.5,7) {};
-\node [font=\LARGE] at (-0.5,7) {};
-\node [font=\LARGE] at (-0.25,7.25) {};
 
-\node [font=\LARGE] at (-8.75,2.25) {\textbf{Token Embedding}};
-\node [font=\LARGE] at (-0.75,5.25) {};
-\node [font=\LARGE] at (-0.75,5.25) {};
-\node [font=\LARGE] at (-0.75,5.25) {};
+% Add node (residual)
+\draw [fill=NNGreenMid!40, line width=0.8pt] (7.5,2.75) circle (0.6cm) node {\LARGE $+$};
+
+% Residual skip connection (attention)
+\draw [line width=0.8pt] (7.5,6) -- (12,6);
+\draw [line width=0.8pt] (12,6) -- (12,2.75);
+\draw [line width=0.8pt, ->, >=Stealth] (12,2.75) -- (8.3,2.75);
+
+% LayerNorm 1
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,2) -- (7.5,1.25);
+\draw [fill=NNGreenDark!30, line width=0.8pt, rounded corners=15] (4.25,1.25) rectangle node {\Large \textbf{LayerNorm}} (10.75,0.25);
+
+% Feed Forward
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,0) -- (7.5,-0.75);
+\draw [fill=NNGreenLight, line width=0.8pt, rounded corners=15] (4.25,-0.75) rectangle node {\Large \textbf{Feed Forward}} (10.75,-1.75);
+
+% Arrow
 \draw [line width=1.1pt, ->, >=Stealth] (7.5,-2) -- (7.5,-2.75);
-\node [font=\LARGE] at (-9.25,0.25) {\textbf{Positional Embedding}};
-\node [font=\LARGE] at (-8.75,-1.5) {\textbf{Input Embedding}};
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,-5.75) -- (7.5,-6.5);
-\node [font=\LARGE] at (7.5,9) {\textbf{ATGCGTACGTTAGCCTGACGTA}};
-\node [font=\Large] at (10.25,8) {Tokenize};
-\draw [line width=1.1pt, ->, >=Stealth, dashed] (7.5,6.25) -- (7.5,5.5);
-\node [font=\Large] at (12.25,5.75) {Mask (Only in pre-training)};
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (-4.75,2.75) rectangle  node {\LARGE $E_{[CLS]}$} (-2.25,1.5);
-\node [font=\LARGE] at (7.5,2) {\textbf{$\cdots$}};
-\node [font=\LARGE] at (7.5,1) {$+$};
-\node [font=\LARGE] at (7.5,0.25) {\textbf{$\cdots$}};
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (-2,2.75) rectangle  node {\LARGE $E_{ATGCGT}$} (0.5,1.5);
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (0.75,2.75) rectangle  node {\LARGE $E_{[MASK]}$} (3.25,1.5);
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (3.5,2.75) rectangle  node {\LARGE $E_{GCGTAC}$} (6,1.5);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (-4.75,1) rectangle  node {\LARGE $E_{1}$} (-2.25,-0.25);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (-2,1) rectangle  node {\LARGE $E_{2}$} (0.5,-0.25);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (0.75,1) rectangle  node {\LARGE $E_{3}$} (3.25,-0.25);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (3.5,1) rectangle  node {\LARGE $E_{4}$} (6,-0.25);
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (9,2.75) rectangle  node {\LARGE $E_{CTGACG}$} (11.5,1.5);
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (11.75,2.75) rectangle  node {\LARGE $E_{TGACGT}$} (14.25,1.5);
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (14.5,2.75) rectangle  node {\LARGE $E_{[MASK]}$} (17,1.5);
-\draw [ fill={rgb,255:red,184; green,231; blue,255} , line width=0.8pt ] (17.25,2.75) rectangle  node {\LARGE $E_{[SEP]}$} (19.75,1.5);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (9,1) rectangle  node {\LARGE $E_{15}$} (11.5,-0.25);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (11.75,1) rectangle  node {\LARGE $E_{16}$} (14.25,-0.25);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (14.5,1) rectangle  node {\LARGE $E_{17}$} (17,-0.25);
-\draw [ fill={rgb,255:red,219; green,243; blue,255} , line width=0.8pt ] (17.25,1) rectangle  node {\LARGE $E_{18}$} (19.75,-0.25);
-\node [font=\LARGE] at (7.5,-0.75) {$=$};
-\node [font=\LARGE] at (7.5,-1.5) {\textbf{$\cdots$}};
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (-4.75,-0.75) rectangle  node {\LARGE $I_{t1}$} (-2.25,-2);
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (-2,-0.75) rectangle  node {\LARGE $I_{t2}$} (0.5,-2);
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (0.75,-0.75) rectangle  node {\LARGE $I_{t3}$} (3.25,-2);
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (3.5,-0.75) rectangle  node {\LARGE $I_{t4}$} (6,-2);
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (9,-0.75) rectangle  node {\LARGE $I_{t15}$} (11.5,-2);
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (11.75,-0.75) rectangle  node {\LARGE $I_{t16}$} (14.25,-2);
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (14.5,-0.75) rectangle  node {\LARGE $I_{t17}$} (17,-2);
-\draw [ fill={rgb,255:red,243; green,248; blue,170} , line width=0.8pt ] (17.25,-0.75) rectangle  node {\LARGE $I_{t18}$} (19.75,-2);
-\draw [ fill={rgb,255:red,255; green,214; blue,228} , line width=0.8pt ] (7.5,-7.5) circle (0.75cm) node {\LARGE $+$} ;
-\node [font=\LARGE] at (7.5,-21.25) {\textbf{$\cdots$}};
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (-4.75,-20.5) rectangle  node {\LARGE $I_{t1}$} (-2.25,-21.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (-2,-20.5) rectangle  node {\LARGE $I_{t2}$} (0.5,-21.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (0.75,-20.5) rectangle  node {\LARGE $I_{t3}$} (3.25,-21.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (3.5,-20.5) rectangle  node {\LARGE $I_{t4}$} (6,-21.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (9,-20.5) rectangle  node {\LARGE $I_{t15}$} (11.5,-21.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (11.75,-20.5) rectangle  node {\LARGE $I_{t16}$} (14.25,-21.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (14.5,-20.5) rectangle  node {\LARGE $I_{t17}$} (17,-21.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,246} , line width=0.8pt ] (17.25,-20.5) rectangle  node {\LARGE $I_{t18}$} (19.75,-21.75);
-\node [font=\LARGE] at (8,-12) {};
-\node [font=\LARGE] at (8,-12) {};
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,-18) -- (7.5,-20.25);
-\draw [line width=0.8pt, short] (7.5,-3.75) -- (11.75,-3.75);
-\draw [line width=0.8pt, short] (11.75,-3.75) -- (11.75,-7.5);
-\draw [line width=0.8pt, ->, >=Stealth] (11.75,-7.5) -- (8.5,-7.5);
-\node [font=\LARGE] at (-8.75,-21) {\textbf{Last Hidden State}};
-\draw [ fill={rgb,255:red,251; green,193; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.5,-4.5) rectangle  node {\large \textbf{Multi-Head Self-Attention}} (11,-5.5);
-\draw [ fill={rgb,255:red,199; green,251; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.25,-9.5) rectangle  node {\Large \textbf{LayerNorm}} (10.75,-10.5);
-\draw [ fill={rgb,255:red,199; green,251; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.25,-16.75) rectangle  node {\Large \textbf{LayerNorm}} (10.75,-17.75);
-\draw [ fill={rgb,255:red,251; green,238; blue,193} , line width=0.8pt , rounded corners = 15.0] (4.25,-11.75) rectangle  node {\Large \textbf{Feed Forward}} (10.75,-12.75);
-\draw [ fill={rgb,255:red,255; green,214; blue,228} , line width=0.8pt ] (7.5,-14.75) circle (0.75cm) node {\LARGE $+$} ;
-\draw [ fill={rgb,255:red,245; green,173; blue,173} , line width=0.8pt , rounded corners = 20.4] (-6.5,-23.5) rectangle  node {\LARGE \textbf{Classification Layer}} (-0.5,-26.25);
-\draw [ fill={rgb,255:red,224; green,224; blue,224} , line width=0.8pt , rounded corners = 20.4] (13.75,-23.25) rectangle (20.25,-26.5);
-\draw [ fill={rgb,255:red,245; green,173; blue,173} , line width=0.8pt , rounded corners = 20.4] (14,-23.5) rectangle  node {\LARGE \textbf{Classification Layer}} (20,-26.25);
-\draw [line width=0.8pt, ->, >=Stealth] (-3.5,-22.25) -- (-3.5,-23);
-\draw [line width=0.8pt, ->, >=Stealth] (13.5,-22.25) -- (14.25,-23);
-\draw [line width=0.8pt, ->, >=Stealth] (16,-22.25) -- (16.25,-23);
-\draw [line width=0.8pt, ->, >=Stealth] (18.5,-22.25) -- (18.5,-23);
-\draw [line width=0.8pt, ->, >=Stealth] (-3.5,-26.75) -- (-3.5,-27.5);
-\draw [line width=0.8pt, ->, >=Stealth] (17,-26.75) -- (17,-27.5);
-\node [font=\LARGE] at (-10.75,-24.75) {\textbf{Sentence-level Classifier}};
-\node [font=\LARGE] at (24,-24.75) {\textbf{Token-level Classifier}};
 
-\node [font=\LARGE] at (-3.5,-28.25) {\textbf{Classification result of original sequence}};
-\node [font=\LARGE] at (17,-28) {\textbf{Classification result of each masked token}};
-\node [font=\Huge] at (16.5,-10.5) {$\times 12$};
-\node [font=\LARGE] at (8,-7.75) {};
-\node [font=\LARGE] at (8,-7.75) {};
-\node [font=\LARGE] at (8,-7.75) {};
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,-3.5) -- (7.5,-4.25);
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,-8.5) -- (7.5,-9.25);
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,-10.75) -- (7.5,-11.5);
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,-13) -- (7.5,-13.75);
-\draw [line width=0.8pt, short] (7.5,-11) -- (11.75,-11);
-\draw [line width=0.8pt, short] (11.75,-11) -- (11.75,-14.75);
-\draw [line width=0.8pt, ->, >=Stealth] (11.75,-14.75) -- (8.5,-14.75);
-\node [font=\LARGE] at (8,-13.75) {};
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,-15.75) -- (7.5,-16.5);
-\draw [line width=1.1pt, ->, >=Stealth] (7.5,8.5) -- (7.5,7.75);
-\node [font=\LARGE] at (0.75,7) {\textbf{[CLS], ATGCGT, TGCGTA, GCGTAC,}};
-\node [font=\LARGE] at (14.25,7) {\textbf{, CTGACG, TGACGT, GACGTA, [SEP]}};
-\node [font=\LARGE] at (7.5,7) {\textbf{$\cdots$}};
-\node [font=\LARGE] at (1,4.75) {\textbf{[CLS], ATGCGT, [MASK], GCGTAC,}};
-\node [font=\LARGE] at (7.5,4.75) {\textbf{$\cdots$}};
-\node [font=\LARGE] at (14,4.75) {\textbf{, CTGACG, TGACGT, [MASK], [SEP]}};
-\node [font=\Large] at (12.25,3.5) {Feed to the Embedding layer};
-\end{circuitikz}
+% Add node (residual)
+\draw [fill=NNGreenMid!40, line width=0.8pt] (7.5,-3.25) circle (0.6cm) node {\LARGE $+$};
+
+% Residual skip connection (FFN)
+\draw [line width=0.8pt] (7.5,0) -- (12,0);
+\draw [line width=0.8pt] (12,0) -- (12,-3.25);
+\draw [line width=0.8pt, ->, >=Stealth] (12,-3.25) -- (8.3,-3.25);
+
+% LayerNorm 2
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-4) -- (7.5,-4.75);
+\draw [fill=NNGreenDark!30, line width=0.8pt, rounded corners=15] (4.25,-4.75) rectangle node {\Large \textbf{LayerNorm}} (10.75,-5.75);
+
+% Arrow out of encoder
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-6) -- (7.5,-7);
+
+% x16 label (outside encoder, black)
+\node [font=\Huge, black] at (16.5,-0.75) {\textbf{$\times\, 16$}};
+
+% =============================================
+% ENCODER OUTPUT -> SPLIT TO PREDICTION HEADS
+% =============================================
+\draw [line width=1.1pt, ->, >=Stealth] (7.5,-7.75) -- (7.5,-8.5);
+
+% Split line
+\draw [line width=0.8pt] (7.5,-8.75) -- (-1.25,-8.75);
+\draw [line width=0.8pt] (7.5,-8.75) -- (16.25,-8.75);
+\draw [line width=1.1pt, ->, >=Stealth] (-1.25,-8.75) -- (-1.25,-9.75);
+\draw [line width=1.1pt, ->, >=Stealth] (16.25,-8.75) -- (16.25,-9.75);
+
+% =============================================
+% PREDICTION HEADS
+% =============================================
+
+% Fine-tuning head (Phenotype)
+\draw [fill=NNDecoderLight, line width=0.8pt, rounded corners=20.4] (-4.5,-10) rectangle (2,-13.25);
+\draw [fill=NNDecoder!60, line width=0.8pt, rounded corners=20.4] (-4.25,-10.25) rectangle node {\LARGE \textbf{Predict [MASK]}} (1.75,-13);
+\node [font=\LARGE, NNDecoder] at (4,-11.75) {\textbf{Pre-training}};
+
+% Pre-training head (MASK)
+\draw [fill=NNDecoderLight, line width=0.8pt, rounded corners=20.4] (12.75,-10) rectangle (19.25,-13.25);
+\draw [fill=NNDecoder!60, line width=0.8pt, rounded corners=20.4] (13,-10.25) rectangle node {\LARGE \textbf{Predict Phenotype}} (19,-13);
+\node [font=\LARGE, NNDecoder] at (10.5,-11.75) {\textbf{Fine-tuning}};
+
+% MLP Decoder label
+\node [font=\LARGE, Black, anchor=east] at (-5,-11.75) {\textbf{MLP Decoder}};
+
+% Arrows to Loss
+\draw [line width=0.8pt, ->, >=Stealth] (-1.25,-13.5) -- (-1.25,-14.25);
+\draw [line width=0.8pt, ->, >=Stealth] (16,-13.5) -- (16,-14.25);
+
+\node [font=\LARGE, NNDecoder] at (-1.25,-15) {\textbf{Loss}};
+\node [font=\LARGE, NNDecoder] at (16,-15) {\textbf{Loss}};
+
+\end{tikzpicture}
 }%
-\caption{Overview of the DNABERT model architecture. The input DNA sequence is divided into overlapping k-mers (with $k=6$ in this example) and represented using token and positional embeddings. These embeddings are passed through 12 transformer layers, each composed of multi-head self-attention, normalization, and feed-forward sublayers. The resulting hidden states are then used for: sequence-level classification (predicting properties of the entire DNA sequence) and token-level classification (predicting masked k-mers during pre-training). \citep{DNABERT}}
-\label{fig: architecture DNAbert}
+\caption{Architecture of the SNPbag model. The original genotype sequence is masked during pre-training, as described in \autoref{sec:mgp}, and embedded, as described in \autoref{sec: Tokenization and embedding}. The embedded sequence is used as input to a BERT encoder, described in \autoref{sec: BERT}, consisting of a stack of $L = 16$ transformer encoder layers. Each encoder layer contains multi-head self-attention, described in \autoref{sec:mhsa}, residual connections with layer normalization, described in \autoref{sec:residual}, and a feed-forward network, described in \autoref{sec:ffn}. The encoder output is passed to two MLPs prediction heads, described in \autoref{sec:prediction_heads}: one for masked genotype prediction during pre-training, described in \autoref{sec:mgp}, and one for phenotype prediction during fine-tuning, described in \autoref{sec:php}.}
+\label{fig:SNPbag architecture}
 \end{figure}
 
 \newpage
-
-% During the pre-training process, a percentage of the $k$-mers in the each subsequence of  are masked using the $[MASK]$ token, for the 
-
-
-% For the pre-training process, a percentage of the $k$-mer tokens $t_i$ within $T^{(m)}$ are replaced by the $[\text{MASK}]$ token to create $I_{\text{mask}}$. The model's objective is to predict the original identity of the masked tokens.
-
-
-% Together with the $k$-mers tokenization, the input sequence can also utilize five special tokens $\Psi = \{ [\text{CLS}], [\text{SEP}], [\text{PAD}], [\text{MASK}], [\text{UNK}] \}$, each having structural or contextual meaning. 
-
-
-
-% The set of all possible $k$-mers, denoted by $\mathcal{T}$, is a component of the input vocabulary. The complete vocabulary space, $\mathcal{V}$, is defined as the union of the $k$-mer set, $\mathcal{T}$, and a set of five special tokens, $\Psi$
-% \begin{align*}
-%     \mathcal{V} = \mathcal{T} \cup \Psi, \quad 
-%     \text{where } \Psi = \{ [\text{CLS}], [\text{SEP}], [\text{PAD}], [\text{MASK}], [\text{UNK}] \}.
-% \end{align*}
-
-\section{Input Sequence Tokenization and Final Representation}
-Let $\Sigma = \{ A, T, G, C \}$ denote the nucleotide alphabet, and let $S = (s_1, s_2, \ldots, s_L)$, where each $s_i \in \Sigma$, represent a nucleotide sequence of length $L$. Before such a sequence can be used as input in the DNABERT model, it is tokenized into a sequence of overlapping $k$-mers, denoted by $T = (t_1, t_2, \ldots, t_{L - k + 1})$. Each $k$-mer, $t_i$, corresponds to a contiguous substring of $k$ nucleotides from $S$, defined as
+\section{Construction of Input Embeddings} \label{sec: Tokenization and embedding}
+Consider $N \in \N$ individuals, each with $M \in \N$ observed genotypes. Let $G \in \{0,1,2\}^{N \times M}$ denote the genotype matrix, and let $P \in \N^M$ denote the vector of loci, such that the entry $G_{i,m}$ represents the genotype of individual $i$ at SNP $m$, located at locus $P_m$.
+While this representation is natural, transformer models require their inputs as continuous vectors in $\R^d$, thus the genotypes and loci are first mapped into an embedding space. By mapping genotypes to an embedding space, the model learns a representation in which relationships between genotypes are determined by the data. To achieve this, each genotype $G_{i,m}$ is first represented as a one-hot encoded vector
 \begin{align*}
-t_i = (s_i, s_{i+1}, \ldots, s_{i+k-1}), \quad \forall i \in \{1, 2, \ldots, L - k + 1\}.
+G_{i,m} &\mapsto e(G_{i,m}),
 \end{align*}
-The set of all possible $k$-mer combinations, denoted $\mathcal{T}$, is a component in the model's complete vocabulary. The complete vocabulary, $\mathcal{V}$, is given by the union of $\mathcal{T}$ and the set of special tokens $\Psi$, summarized in Table \ref{tabl: special tokens}
+where $e(0) = (1,0,0)$, $e(1) = (0,1,0)$, and $e(2) = (0,0,1)$. For individual $i$, the $M$ one-hot vectors are stacked row-wise into a matrix $e(G_i) \in \mathbb{R}^{M \times 3}$, and the genotype embedding is obtained by applying a learnable linear transformation to this collection
 \begin{align*}
-    \mathcal{V} = \mathcal{T} \cup \Psi, \quad 
-    \text{where } \Psi = \{ [\text{CLS}], [\text{SEP}], [\text{PAD}], [\text{MASK}], [\text{UNK}] \},
+    \eta_i = e(G_i)\, W_G, \quad \eta_i \in \R^{M \times d}
 \end{align*}
-yielding a total of $4^k + 5$ different tokens in $\mathcal{V}$. 
+where $W_G \in \mathbb{R}^{3 \times d}$ is a trainable weight matrix and $d$ denotes the embedding dimension, which henceforth is fixed to $d = 512$. The resulting embeddings across all $N$ individuals are collected into a tensor
+\begin{align*}
+    E_G = \begin{pmatrix} \eta_1 \\ \eta_2 \\ \vdots \\ \eta_N \end{pmatrix} \in \mathbb{R}^{N \times M \times 512},
+\end{align*}
+where each $\eta_i \in \mathbb{R}^{M \times 512}$ \citep{Boue2025}. 
 
-\begin{table}[h!]
-\centering
-\caption{Description of special tokens used in DNABERT.}
-\begin{tabular}{ll}
-\hline
-\textbf{Token} & \textbf{Description} \\
-\hline
-$[\text{CLS}]$  & Marks the beginning of a sequence. \\
-$[\text{SEP}]$  & Marks the end of a sequence. \\
-$[\text{PAD}]$  & Used to pad sequences to the fixed maximum input length. \\
-$[\text{MASK}]$ & Replaces randomly selected chunks of tokens during pre-training. \\
-$[\text{UNK}]$  & Represents any $k$-mer not present in the model vocabulary. \\
-\hline
-\label{tabl: special tokens}
-\end{tabular}
+The same approach is used to obtain positional embeddings from the loci vector.
+Since the $M$ loci are shared across all individuals, each position $j \in \{1, \dots, M\}$
+is mapped to a learnable embedding via
+\begin{align*}
+    P_m = e_m^\top\, W_P,
+\end{align*}
+where $e_m \in \mathbb{R}^{M}$ is the $m$-th standard basis vector and
+$W_P \in \mathbb{R}^{M \times 512}$ is a trainable weight matrix.
+Equivalently, $p_m$ is simply the $m$-th row of $W_P$.
+The $M$ positional embeddings are stacked row-wise into a matrix
+$\tilde{E}_P \in \mathbb{R}^{M \times 512}$, which is then replicated across all
+$N$ individuals to form a tensor $E_P \in \mathbb{R}^{N \times M \times 512}$.
+
+With both genotype and positional embeddings defined, the genotype embeddings are first scaled by $\sqrt{512}$ to ensure their magnitudes are comparable to the positional embeddings before addition \citep{AttentionIsAllYouNeed}. The final representation is then constructed as
+\begin{align}\label{eq: embedding}
+    E = \sqrt{512}\; E_G + E_P.
+\end{align}
+The resulting embedding tensor $E \in \mathbb{R}^{N \times M \times 512}$ is used as input to the BERT encoder, see \autoref{fig:SNPbag architecture}\citep{Xu2025-kj}.
+
+\begin{exmp}{Construction of input embedding}
+Consider $N = 2$ individuals and $M = 4$ SNPs with genotype matrix and loci vector
+\begin{align*}
+    G = \begin{pmatrix} 0 & 1 & 2 & 1 \\ 1 & 0 & 1 & 2 \end{pmatrix}, \quad P = (101, 305, 502, 718).
+\end{align*}
+For individual $1$, the genotypes $(0, 1, 2, 1)$ are one-hot encoded and stacked row-wise into
+\begin{align*}
+    e(G_1) = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \\ 0 & 1 & 0 \end{pmatrix} \in \mathbb{R}^{4 \times 3}.
+\end{align*}
+Multiplying by the weight matrix $W_G \in \mathbb{R}^{3 \times 512}$ yields the genotype embedding $\eta_1 = e(G_1)\, W_G \in \mathbb{R}^{4 \times 512}$, where each row is the learned representation of the corresponding genotype. In this case, since the rows of $e(G_1)$ are standard basis vectors, the $m$-th row of $\eta_1$ simply selects the row of $W_G$ corresponding to genotype $G_{1,m}$.
+Similarly, individual $2$ has genotypes $(1, 0, 1, 2)$, giving
+\begin{align*}
+    e(G_2) = \begin{pmatrix} 0 & 1 & 0 \\ 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \end{pmatrix} \in \mathbb{R}^{4 \times 3},
+\end{align*}
+and $\eta_2 = e(G_2)\, W_G \in \mathbb{R}^{4 \times 512}$. The genotype embeddings are then stacked into $E_G = (\eta_1,\, \eta_2)^\top \in \mathbb{R}^{2 \times 4 \times 512}$.
+For the positional embeddings, each SNP position $m \in \{1, 2, 3, 4\}$ selects the $m$-th row of $W_P \in \mathbb{R}^{4 \times 512}$, yielding $\tilde{E}_P = W_P \in \mathbb{R}^{4 \times 512}$. This matrix is replicated for both individuals to obtain $E_P \in \mathbb{R}^{2 \times 4 \times 512}$.
+Finally, the input embedding is constructed as $E = \sqrt{512}\; E_G + E_P \in \mathbb{R}^{2 \times 4 \times 512}$.
+\end{exmp}
+
+\section{Bidirectional Encoder Representations from Transformers} \label{sec: BERT}
+
+The BERT encoder processes each individual independently. For individual $i \in \{1, \dots, N\}$, the input is the embedding matrix $E_i \in \mathbb{R}^{M \times 512}$ defined in \eqref{eq: embedding}, where each row is the $512$-dimensional embedding of a single SNP. Each row of $E_i$ is the $512$-dimensional embedding of a single SNP. At this stage, each row depends only on the genotype and position of that SNP, it contains no information about the surrounding genomic context. The role of the encoder is to transform these initial, context-free embeddings into context-aware representations, where each row incorporates information from the other SNPs in the sequence.
+
+The encoder is built as a stack of $L = 16$ transformer layers, each with the same architecture but its own learnable parameters. For each individual, the input embedding $E_i$ enters the first layer, and the representation produced by one layer is passed as input to the next, see \autoref{fig:SNPbag architecture}. To track the representation as it flows through the encoder, the following notation is used. Let $a^{(\ell)} \in \mathbb{R}^{M \times 512}$ denote the output of encoder layer $\ell$, with $a^{(0)} \coloneqq E_i$ being the input to the first layer and $a^{(L)}$ being the final encoder output. Within each layer $\ell$, the transformation from $a^{(\ell-1)}$ to $a^{(\ell)}$ proceeds through four intermediate steps, each producing a matrix in $\mathbb{R}^{M \times 512}$:
+\begin{enumerate}
+    \item \textbf{Multi-head self-attention} (\autoref{sec:mhsa}) produces $s^{(\ell)}$. This is where tokens interact: each SNP gathers information from other SNPs based on learned attention weights. It is the only operation that creates dependencies between positions.
+    \item \textbf{Residual connection and layer normalisation} (\autoref{sec:residual}) produces $z^{(\ell)}$. The attention output $s^{(\ell)}$ is added to the input $a^{(\ell-1)}$ and the result is normalised. The addition ensures that the original representation is preserved alongside the new information.
+    \item \textbf{Feed-forward network} (\autoref{sec:ffn}) produces $f^{(\ell)}$. A nonlinear transformation is applied independently to each token, allowing the model to learn nonlinear patterns within each SNP's representation.
+    \item \textbf{Second residual connection and layer normalisation} produces $a^{(\ell)}$. The feed-forward output $f^{(\ell)}$ is added to $z^{(\ell)}$ and normalised, yielding the final output of layer $\ell$.
+\end{enumerate}
+In summary, the data flows through each layer $\ell$ as
+\begin{align*}
+    a^{(\ell-1)} \;\xrightarrow{\text{attention}}\; s^{(\ell)} \;\xrightarrow{\text{residual + norm}}\; z^{(\ell)} \;\xrightarrow{\text{feed-forward}}\; f^{(\ell)} \;\xrightarrow{\text{residual + norm}}\; a^{(\ell)}.
+\end{align*}
+After $L = 16$ layers, the final output $a^{(L)} \in \mathbb{R}^{M \times 512}$ is a matrix where each row is a context-aware representation of the corresponding SNP, shaped by the information from all other SNPs in the sequence. The following subsections describe each operation in detail. The following subsections describe each operation in detail. The focus
+is on the architecture, what each operation computes and how the
+representations are transformed. How the learnable parameters in these
+operations are determined through training is described separately in
+\autoref{sec:training}.
+
+\subsection{Multi-Head Self-Attention}
+\label{sec:mhsa}
+Self-attention is a mechanism that allows each element in a sequence to attend to every other element, calculating attention weights that represent dependencies between each token in the sequence. It is the only operation in the transformer encoder that creates interactions between SNPs. The multi-head extension runs several self-attention mechanisms, each with its own learnable parameters, allowing the mechanism to capture different types of relationships between SNPs. The mechanism is first described for a single attention head and then extended to the multi-head setting.
+
+At each of the $L = 16$ encoder layers, the input $a^{(\ell - 1)} \in \mathbb{R}^{M \times 512}$ is transformed to queries, keys, and values
+\begin{align*}
+    Q = a^{(\ell - 1)}\, W_{Q}^{(\ell)}, \quad
+    K = a^{(\ell - 1)}\, W_{K}^{(\ell)}, \quad
+    V = a^{(\ell - 1)}\, W_{V}^{(\ell)},
+\end{align*}
+where $W_{Q}^{(\ell)}, W_{K}^{(\ell)} \in \mathbb{R}^{512 \times d_k}$ and $W_{V}^{(\ell)} \in
+\mathbb{R}^{512 \times d_v}$ are learnable weight matrices, with each
+encoder layer maintaining its own independent set of parameters. Although $Q$, $K$, and $V$ are all computed from the same input $a^{(\ell-1)}$, they differ because the three weight matrices $W_Q^{(\ell)}$, $W_K^{(\ell)}$, and $W_V^{(\ell)}$ are initialised with different random values and are updated independently during training, causing each to learn a different transformation of the input. The output of the head is then
+\begin{align*}
+    \operatorname{Attention}(Q, K, V) = \operatorname{softmax}\!\biggl(
+        \frac{Q\, K^\top}{\sqrt{d_k}}
+    \biggr)\, V
+    \;\in\; \mathbb{R}^{M \times d_v},
+\end{align*}
+where $QK^\top \in \mathbb{R}^{M \times M}$ computes the pairwise attention scores between all tokens. The softmax function, $\operatorname{softmax}(x)_j = \exp(x_j) / \sum_{k} \exp(x_k)$, is applied to each row independently so that the entries sum to one and can be interpreted as weights. Because the exponential amplifies differences between its inputs, large entries in $QK^\top$ dominate the softmax output, causing the resulting weights to concentrate on a few tokens. As the dimension $d_k$ grows, the empirical variance of the dot products in $QK^\top$ grows proportionally. Large inputs to the softmax cause it to concentrate nearly all its weight on a single token. Dividing by $\sqrt{d_k}$ normalises the variance back to a stable scale, allowing the softmax to distribute its weight across multiple positions rather than collapsing onto one \citep{AttentionIsAllYouNeed}. Multiplying by $V$ produces a weighted average of the value vectors for each token, where tokens with higher attention weights contribute more to the output.
+
+A single attention head can only capture one type of relationship
+between tokens. To capture multiple types of relationships
+simultaneously, $n_h = 16$ heads are run in parallel within each
+encoder layer. Each head $h$ applies the single-head attention mechanism
+described above with its own linear transformation matrices
+$W_{Q_h}^{(\ell)} \in \mathbb{R}^{512 \times d_k}$,
+$W_{K_h}^{(\ell)} \in \mathbb{R}^{512 \times d_k}$,
+$W_{V_h}^{(\ell)} \in \mathbb{R}^{512 \times d_v}$. Since each head's weight
+matrices are initialised with different random values, they follow
+different trajectories during training and converge to different
+solutions, allowing each head to specialise in a different type of
+dependency between tokens. The $n_h$ head outputs are then concatenated
+and linearly transformed
+\begin{align*}
+   s^{(\ell)} = \operatorname{MultiHead}(a^{(\ell - 1)})
+    = \operatorname{concat}\!\bigl(
+        \operatorname{head}_1,\;\dots,\;\operatorname{head}_{n_h}
+    \bigr)\, W_O^{(\ell)}
+    \;\in\; \mathbb{R}^{M \times 512},
+\end{align*}
+where each $\operatorname{head}_h = \operatorname{Attention}(a^{(\ell - 1)} W_{Q_h}^{(\ell)},\; a^{(\ell - 1)} W_{K_h}^{(\ell)},\; a^{(\ell - 1)} W_{V_h}^{(\ell)})$ and $\operatorname{concat}(\cdot)$ stacks the $n_h$ head outputs column-wise into a single matrix in $\mathbb{R}^{M \times (n_h \cdot d_v)}$. Since each of the $n_h = 16$ heads produces an output in $\mathbb{R}^{M \times d_v}$ with $d_k = d_v = 512 / n_h = 32$, the concatenation lies in $\mathbb{R}^{M \times (n_h \cdot d_v)} = \mathbb{R}^{M \times 512}$. The output matrix $W_O^{(\ell)} \in \mathbb{R}^{512 \times 512}$ then maps this concatenation back to $\mathbb{R}^{M \times 512}$, mixing information across heads so that each token's representation can draw on the different relationship types that the individual heads have captured\citep{AttentionIsAllYouNeed}.
+
+\begin{exmp}{Multi-head self-attention}
+Consider a single individual with a sequence of $M = 4$ SNPs with $n_h = 2$ attention heads, each with $d_k = d_v = 2$. Suppose that, after transformation, the first head has query, key, and value matrices
+\begin{align*}
+    Q_1 = \begin{pmatrix} 1 & 0 \\ 0 & 1 \\ 1 & 1 \\ 0 & 0 \end{pmatrix}, \quad
+    K_1 = \begin{pmatrix} 1 & 0 \\ 1 & 1 \\ 0 & 1 \\ 0 & 0 \end{pmatrix}, \quad
+    V_1 = \begin{pmatrix} 2 & 1 \\ 0 & 3 \\ 1 & 1 \\ 4 & 0 \end{pmatrix}.
+\end{align*}
+The raw score matrix is
+\begin{align*}
+    Q_1 K_1^\top = \begin{pmatrix} 1 & 1 & 0 & 0 \\ 0 & 1 & 1 & 0 \\ 1 & 2 & 1 & 0 \\ 0 & 0 & 0 & 0 \end{pmatrix}.
+\end{align*}
+After scaling by $\sqrt{d_k} = \sqrt{2}$ and applying the row-wise softmax, the attention weights become
+\begin{align*}
+    \operatorname{softmax}\!\biggl(\frac{Q_1 K_1^\top}{\sqrt{2}}\biggr)
+    \approx \begin{pmatrix} 0.33 & 0.33 & 0.17 & 0.17 \\ 0.17 & 0.33 & 0.33 & 0.17 \\ 0.19 & 0.35 & 0.27 & 0.19 \\ 0.25 & 0.25 & 0.25 & 0.25 \end{pmatrix}.
+\end{align*}
+Each row now sums to one over the four SNPs. For instance, the third row shows that SNP 3 assigns the highest weight ($0.35$) to SNP 2, showing a large compatibility score between them. The head output is obtained by multiplying these weights with the value matrix:
+\begin{align*}
+    \operatorname{head}_1
+    = \operatorname{softmax}\!\biggl(\frac{Q_1 K_1^\top}{\sqrt{2}}\biggr) V_1
+    \approx \begin{pmatrix} 1.34 & 1.49 \\ 0.84 & 1.83 \\ 1.08 & 1.62 \\ 1.75 & 1.25 \end{pmatrix}.
+\end{align*}
+Each row of the output is a weighted average of the value vectors, where the weights are determined by the learned compatibility between tokens. SNP 3, for example, draws most heavily from the value vector of SNP 2, so its output representation is influenced primarily by the information that SNP 2 carries.
+
+Now suppose head 2, using its own parameters, independently learned because they are initialized with different random values and updated independently during training, yields
+\begin{align*}
+    \operatorname{head}_2
+    \approx \begin{pmatrix} 0.50 & 2.10 \\ 1.20 & 0.80 \\ 0.90 & 1.40 \\ 1.00 & 1.00 \end{pmatrix}.
+\end{align*}
+The two heads are concatenated column-wise and form the matrix
+\begin{align*}
+    \operatorname{concat}\!\bigl[\operatorname{head}_1,\; \operatorname{head}_2\bigr]
+    \approx \begin{pmatrix} 1.34 & 1.49 & 0.50 & 2.10 \\ 0.84 & 1.83 & 1.20 & 0.80 \\ 1.08 & 1.62 & 0.90 & 1.40 \\ 1.75 & 1.25 & 1.00 & 1.00 \end{pmatrix}
+    \;\in\; \mathbb{R}^{4 \times 4}.
+\end{align*}
+Finally, the output matrix $W_O \in \mathbb{R}^{4 \times 4}$ is applied. Without this transformation, the columns of each head's output would remain non-interacting. Multiplying by $W_O$ produces linear combinations across all four columns, yielding $\operatorname{MultiHead}(a^{(0)}) \in \mathbb{R}^{4 \times 4}$, where each row now blends the representations learned by both heads.
+\end{exmp}
+
+\subsection{Feed-Forward Network}
+\label{sec:ffn}
+The multi-head self-attention mechanism described in \autoref{sec:mhsa} allows each token to gather information from the entire sequence, but the operation is solely linear. The feed-forward network complements this by applying a nonlinear transformation independently to each token, allowing the model to also learn nonlinear interactions.
+
+The feed-forward network has the same architecture in all $16$ encoder layer, but each layer has its own independently learned weight matrices and bias vectors. Within a given layer, the same weights and biases are applied to each of the $M$ token outputs independently. For a single token representation $z^{(\ell)}_m \in \mathbb{R}^{512}$, the transformation is
+\begin{align*}
+    f^{(\ell)}_m = \operatorname{FFN}(z^{(\ell)}_m) = W_2\, \sigma(W_1\, z^{(\ell)}_m + b_1) + b_2
+    \;\in\; \mathbb{R}^{512},
+\end{align*}
+where $W_1 \in \mathbb{R}^{d_{\mathrm{ff}} \times 512}$ and $W_2 \in \mathbb{R}^{512 \times d_{\mathrm{ff}}}$ are learnable weight matrices, $b_1 \in \mathbb{R}^{d_{\mathrm{ff}}}$ and $b_2 \in \mathbb{R}^{512}$ are bias vectors, $d_{\mathrm{ff}}$ is the dimension of the hidden layer (commonly set to $d_{\mathrm{ff}} = 2048$), and $\sigma(\cdot)$ is a nonlinear activation function applied element-wise. Each encoder layer has its own independent set of feed-forward parameters \citep{AttentionIsAllYouNeed}.
+
+The activation function used in BERT is often chosen as the Gaussian Error Linear Unit (GELU), given as
+\begin{align}\label{eq: GELU}
+    \operatorname{GELU}(x) = x \cdot \Phi(x),
+\end{align}
+where $\Phi(x)$ is the cumulative distribution function of the standard normal distribution. Thus, for each element, $x$, GELU multiplies $x$ by $\Phi(x)$, which is the probability that a standard normal random variable falls below $x$. For large positive inputs $\Phi(x)$ approaches one, so the output is approximately $x$ itself. For large negative inputs $\Phi(x)$ approaches zero, so the output is approximately $0$. The function is depicted in \autoref{fig:gelu}. 
+
+Since $\Phi(x)$ has no closed-form expression, the following approximation is used in practice
+\begin{align*}
+    \operatorname{GELU}(x) \approx 0.5\, x \left(1 + \tanh\!\left[\sqrt{\frac{2}{\pi}}\left(x + 0.044715\, x^3\right)\right]\right),
+\end{align*}
+where $\tanh(x) = (e^x - e^{-x}) / (e^x + e^{-x})$ is the hyperbolic tangent \citep{GELU}.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\linewidth]{fig//img//GELU/GELU.png}
+    \caption{The GELU activation function. For large positive $x$ the function approaches the identity $y = x$, while for large negative $x$ the output approaches zero.}
+    \label{fig:gelu}
+\end{figure}
+
+The feed-forward network does not introduce any interaction between tokens each row is processed individually. This is intentional as the preceding multi-head self-attention has already mixed information across the sequence, so each token's representation already reflects the full genomic context. The feed-forward network then transforms these representations individually, adding nonlinearity to features that attention has produced \citep{AttentionIsAllYouNeed}.
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[x=3.5cm, y=1.3cm,
+      % colours
+      mynode/.style={circle, draw=NNBlue, thick, minimum size=10mm, fill=white, font=\small},
+      inputnode/.style={mynode, fill=NNBlue!8},
+      hiddennode/.style={mynode, fill=NNSeaBlue!15, draw=NNSeaBlue!80!black},
+      outputnode/.style={mynode, fill=NNOceanGreen!15, draw=NNOceanGreen!80!black},
+      conn/.style={draw=NNBlue!40, thick, ->, >=stealth},
+      lbl/.style={font=\large\bfseries}
+    ]
+
+      \definecolor{NNBlue}{HTML}{001965}
+      \definecolor{NNSeaBlue}{HTML}{3B97DE}
+      \definecolor{NNOceanGreen}{HTML}{00857C}
+
+      % --- Input layer: x_m in R^512 (3 nodes + vdots) ---
+      \node[inputnode] (I1) at (0, 2.5)  {$z^{(\ell)}_{m,1}$};
+      \node[inputnode] (I2) at (0, 1.0)  {$z^{(\ell)}_{m,2}$};
+      \node[font=\large, NNBlue!60] at (0, -0.2) {$\vdots$};
+      \node[inputnode] (I3) at (0, -1.3) {$z^{(\ell)}_{m,512}$};
+
+      % --- Hidden layer: R^{d_ff} = R^2048 (4 nodes + vdots) ---
+      \node[hiddennode] (H1) at (1, 3.2)  {$h_{m,1}^{\mathrm{ff}}$};
+      \node[hiddennode] (H2) at (1, 1.9)  {$h_{m,2}^{\mathrm{ff}}$};
+      \node[hiddennode] (H3) at (1, 0.6)  {$h_{m,3}^{\mathrm{ff}}$};
+      \node[font=\large, NNSeaBlue!80!black] at (1, -0.5) {$\vdots$};
+      \node[hiddennode] (H4) at (1, -1.5) {$h_{m, d_{\mathrm{ff}}}^{\mathrm{ff}}$};
+
+      % --- Output layer: R^512 (3 nodes + vdots) ---
+      \node[outputnode] (O1) at (2, 2.5)  {$f^{(\ell)}_{m,1}$};
+      \node[outputnode] (O2) at (2, 1.0)  {$f^{(\ell)}_{m,2}$};
+      \node[font=\large, NNOceanGreen!80!black] at (2, -0.2) {$\vdots$};
+      \node[outputnode] (O3) at (2, -1.3) {$f^{(\ell)}_{m,512}$};
+
+      % --- Connections: input -> hidden ---
+      \foreach \i in {I1,I2,I3}{
+        \foreach \j in {H1,H2,H3,H4}{
+          \draw[conn] (\i) -- (\j);
+        }
+      }
+
+      % --- Connections: hidden -> output ---
+      \foreach \i in {H1,H2,H3,H4}{
+        \foreach \j in {O1,O2,O3}{
+          \draw[conn] (\i) -- (\j);
+        }
+      }
+
+      % --- Layer labels (top) ---
+      \node[lbl, NNBlue, align=center] at (0, 3.5) {Input};
+      \node[lbl, NNSeaBlue!80!black, align=center] at (1, 4.0) {Hidden layer};
+      \node[lbl, NNOceanGreen!80!black, align=center] at (2, 3.5) {Output};
+
+      % --- Dimension labels (bottom) ---
+      \node[font=\small, NNBlue!70] at (0, -2.5) {$\mathbb{R}^{512}$};
+      \node[font=\small, NNSeaBlue!70!black] at (1, -2.5) {$\mathbb{R}^{d_{\mathrm{ff}}}$};
+      \node[font=\small, NNOceanGreen!70!black] at (2, -2.5) {$\mathbb{R}^{512}$};
+
+
+      \definecolor{NNRed}{HTML}{CB333B}
+
+      % --- Bias node for hidden layer ---
+      \node[mynode, fill=NNRed!10, draw=NNRed!70, minimum size=8mm, font=\scriptsize] (B1) at (0.2, -3.0) {$b_1$};
+      \foreach \j in {H1,H2,H3,H4}{
+        \draw[conn] (B1) -- (\j);
+      }
+
+      % --- Bias node for output layer ---
+      \node[mynode, fill=NNRed!10, draw=NNRed!70, minimum size=8mm, font=\scriptsize] (B2) at (1.2, -3.0) {$b_2$};
+      \foreach \j in {O1,O2,O3}{
+        \draw[conn] (B2) -- (\j);
+      }
+
+    \end{tikzpicture}
+    \caption{Visualization of the feed-forward network for a single token $.z^{(\ell)}_m$ at encoder layer $\ell$. The input $z^{(\ell)}_m \in \mathbb{R}^{512}$ is mapped into $\mathbb{R}^{d_{\mathrm{ff}}}$ by $W_1$ and the activation function $h_m^{\mathrm{ff}} = \sigma(W_1 z^{(\ell)}_m + b_1)$. The output $f^{(\ell)}_m = W_2 h_m^{\mathrm{ff}} + b_2 \in \mathbb{R}^{512}$ is then obtained by mapping back to $\mathbb{R}^{512}$ via $W_2$. The same parameters are shared across all $M$ tokens.}
+    \label{fig:ffn}
+\end{figure}
+
+\subsection{Residual Connections and Layer Normalization}
+\label{sec:residual}
+As the complexity of the encoder increases, the input that each layer receives has already been transformed multiple times, making it increasingly difficult for gradients to propagate back to the earlier layers during training. Residual connections address this by carrying the original input directly to the output of each sublayer in the encoder \citep{ResNet}.
+
+Each of the $L = 16$ encoder layers contains two sublayers: the multi-head self-attention mechanism described in \autoref{sec:mhsa}, and the feed-forward network described in \autoref{sec:ffn}. A residual connection wraps each sublayer, followed by layer normalization
+\begin{align*}
+    z^{(\ell)}   &= \operatorname{LayerNorm}\!\bigl(a^{(\ell-1)} + s^{(\ell)}\bigr), \\
+    a^{(\ell)}   &= \operatorname{LayerNorm}\!\bigl(z^{(\ell)} + f^{(\ell)}\bigr),
+\end{align*}
+where $s^{(\ell)} = \operatorname{MultiHead}(a^{(\ell-1)})$ is the output of the multi-head self-attention sublayer, $f^{(\ell)} = \operatorname{FFN}(z^{(\ell)})$ is the output of the feed-forward sublayer, $z^{(\ell)}$ is the output of the first residual connection and normalization, and $a^{(\ell)} \in \mathbb{R}^{M \times 512}$ is the final output of layer $\ell$.
+
+Layer normalization is applied after each residual connection, as the repeated addition of sublayer outputs would otherwise grow with each layer in the encoder. For each token $m$, the operation normalizes across the $512$ embedding dimensions
+\begin{align}\label{eq: LayerNorm}
+    \operatorname{LayerNorm}(u_m) = \gamma \odot \frac{u_m - \mu_m}{\sqrt{\sigma_m^2 + \varepsilon}} + \beta,
+\end{align}
+where $u_m$ denotes the $m$-th row of the summed output from either residual addition, i.e.\ $a^{(\ell-1)} + s^{(\ell)}$ or $z^{(\ell)} + f^{(\ell)}$, $\mu_m$ and $\sigma_m^2$ are the empirical mean and variance computed across its $512$ components, $\varepsilon$ is a small constant included for numerical stability (often set to $10^{-9}$), $\odot$ denotes element-wise multiplication, and $\gamma, \beta \in \mathbb{R}^{512}$ are learnable parameters that rescale and shift each dimension after normalization, initialized to $\gamma = \mathbf{1}$ and $\beta = \mathbf{0}$ \citep{LayerNorm}.
+
+\section{Prediction Multi-Layer Perceptrons} \label{sec:prediction_heads}
+The BERT encoder described in \autoref{sec: BERT} produces, for each individual $i$, a matrix of contextualized representations $a^{(L)} \in \mathbb{R}^{M \times 512}$, where each row $a^{(L)}_m \in \mathbb{R}^{512}$ encodes information about SNP $m$ informed by the entire sequence. These representations are learned through self-supervised pre-training: a subset of genotype positions is masked before embedding, and a genotype prediction MLP maps the encoder output at each masked position to three genotype logits. The model is then trained end-to-end by minimizing the cross-entropy loss between these logits and the true genotypes, using no phenotype labels. This forces the encoder to learn representations that capture dependencies between SNPs.
+
+After pre-training, the genotype prediction MLP is discarded and replaced by a separate phenotype prediction MLP. The pre-trained encoder weights are retained, so the new MLP operates on representations that already encode genomic structure. Both MLPs are depicted in \autoref{fig:prediction_mlps} \citep{SNPbag}.
+
+% Both MLPs are single-hidden-layer that map a $512$-dimensional input vector to a hidden layer of dimension $2048$ with element-wise activation, followed by a linear transformation to an output of dimension $3$ for masked genotype prediction and dimension $1$ for phenotype prediction, see \autoref{fig:prediction_mlps}.
+
+\subsection{Masked Genotype Prediction} \label{sec:mgp}
+During pre-training \citep{Devlin2019}, each genotype is replaced by a mask
+token with an $85\%$ probability before the input embedding is constructed.
+The model's task is to recover the original genotype values from the
+surrounding context, forcing the encoder to learn representations that
+capture dependencies between SNPs without requiring any phenotypic labels.
+
+The recovery is framed as a classification problem: at each masked position
+$m$, the model estimates the probability that the original genotype belongs
+to each of the three classes $\{0, 1, 2\}$. These probabilities are modelled
+as a softmax transformation of three real-valued scores, called logits,
+which are in turn produced by an MLP. Concretely, for each masked position
+$m$, the corresponding encoder output row $a^{(L)}_m \in \mathbb{R}^{512}$
+is passed through a linear transformation into $\mathbb{R}^{2048}$, followed
+by the GELU activation, and a second linear transformation to
+$\mathbb{R}^{3}$, yielding three genotype logits
+\begin{align*}
+    h_m^{\mathrm{geno}} &= \sigma(a^{(L)}_m\, W_1 + b_1)
+      \;\in\; \mathbb{R}^{2048},  \\
+    \hat{y}_m^{\mathrm{geno}} &= h_m^{\mathrm{geno}}\, W_2 + b_2
+      \;\in\; \mathbb{R}^{3},
+\end{align*}
+where $W_1 \in \mathbb{R}^{512 \times 2048}$,
+$b_1 \in \mathbb{R}^{2048}$,
+$W_2 \in \mathbb{R}^{2048 \times 3}$, and
+$b_2 \in \mathbb{R}^{3}$ are learnable parameters, and
+$\sigma$ denotes the activation function, chosen as GELU defined
+in \eqref{eq: GELU}. The softmax function then converts the logits
+to a probability distribution over the three genotype classes
+\begin{align*}
+    p(G_m = c \mid a^{(L)}_m)
+    = \frac{\exp(\hat{y}_{m,c}^{\mathrm{geno}})}
+           {\sum_{k=0}^{2} \exp(\hat{y}_{m,k}^{\mathrm{geno}})},
+    \quad c \in \{0, 1, 2\},
+\end{align*}
+where $c$ indexes the three genotype classes and
+$p(G_m = c \mid a^{(L)}_m)$ is the predicted probability that position
+$m$ has genotype $c$.
+
+The training objective is to maximize the likelihood of the observed
+genotypes at the masked positions. Equivalently, the loss is the negative
+log-likelihood averaged over the masked set
+\begin{align}\label{eq: cross-entro loss}
+    L_{\mathrm{geno}}
+    = - \frac{1}{|\mathcal{M}|} \sum_{m \in \mathcal{M}} \sum_{c=0}^{2}
+      \mathbbm{1}\{G_{i,m} = c\}\,
+      \log p(G_m = c \mid a^{(L)}_m),
+\end{align}
+where $\mathcal{M}$ is the set of masked positions, $G_{i,m}$ is the
+true genotype of individual $i$ at position $m$, and
+$\mathbbm{1}\{G_{i,m} = c\}$ is the indicator function that selects only
+the log-probability of the correct class. This is the categorical
+cross-entropy loss \citep{PyTorchCrossEntropyLoss}.
+
+The loss is restricted to the masked positions rather than computed over
+all $M$ SNPs. If unmasked positions were included, the model could simply
+copy the genotype it already observes in the input, achieving a low loss
+without learning any contextual structure. By evaluating the loss only at
+positions where the input has been replaced by a mask token, the model is
+forced to infer the original genotype from the surrounding context, which
+is what drives the encoder to learn meaningful representations
+\citep{Devlin2019}.
+
+\subsection{Phenotype Prediction} \label{sec:php}
+For phenotype prediction, the model must produce a single prediction for the
+entire individual rather than a per-token prediction. A single SNP
+representation alone does not carry enough information to determine a
+phenotype, so the prediction must reflect the combined effect of all SNPs in
+the sequence. The encoder output $a^{(L)} \in \mathbb{R}^{M \times 512}$ is
+therefore aggregated by mean-pooling across the sequence dimension to obtain
+a single summary vector
+\begin{align*}
+    \bar{a} = \frac{1}{M} \sum_{m=1}^{M} a^{(L)}_m
+    \;\in\; \mathbb{R}^{512}.
+\end{align*}
+Mean-pooling reduces $M$ token representations to one vector, which
+necessarily discards positional information, but it provides a simple and
+computationally efficient aggregation that is sufficient for the
+classification task \citep{Gholamalinezhad2020}.
+
+Because pooling disrupts the normalization established by the final encoder
+layer, a layer normalization is applied to $\bar{a}$ before the first linear
+mapping. The phenotype MLP is then
+\begin{align*}
+    \tilde{a} &= \operatorname{LayerNorm}(\bar{a}), \\
+    h^{\mathrm{pheno}} &= \sigma(\tilde{a}\, W_1 + b_1), \\
+    \hat{y}^{\mathrm{pheno}} &= h^{\mathrm{pheno}}\, W_2 + b_2
+      \;\in\; \mathbb{R},
+\end{align*}
+where $W_1 \in \mathbb{R}^{512 \times 2048}$,
+$b_1 \in \mathbb{R}^{2048}$,
+$W_2 \in \mathbb{R}^{2048 \times 1}$, and
+$b_2 \in \mathbb{R}$ are learnable parameters, $\sigma$ denotes the activation function, commonly chosen as GELU \eqref{eq: GELU}, and LayerNorm is defined in \eqref{eq: LayerNorm}. The scalar output $\hat{y}^{\mathrm{pheno}}$ is a raw logit. The probability that individual $i$ is a case is then obtained by applying the logistic (sigmoid) function
+\begin{align*}
+    p_i = \sigma(\hat{y}^{\mathrm{pheno}}_i)
+    = \frac{1}{1 + \exp(-\hat{y}^{\mathrm{pheno}}_i)}
+    \;\in\; (0,\, 1).
+\end{align*}
+
+As in the genotype prediction task, the training objective is to maximize
+the likelihood of the observed phenotype labels. For a binary outcome $y_i \in \{0, 1\}$, the likelihood contribution of individual $i$ is $p_i^{y_i}(1 - p_i)^{1 - y_i}$. Taking the negative log-likelihood and averaging over all individuals in the batch gives the binary cross-entropy loss
+\begin{align}
+\label{eq: BCE loss}
+L_{\mathrm{pheno}} = -\frac{1}{N} \sum_{i=1}^{N} \left[y_i \log p_i + (1 - y_i) \log(1- p_i)\right],
+\end{align}
+where $N$ is the number of individuals in the batch
+\citep{PyTorchBCEWithLogitsLoss}.
+
+\begin{figure}[h]
+    \centering
+    \definecolor{NNBlue}{HTML}{001965}
+    \definecolor{NNSeaBlue}{HTML}{3B97DE}
+    \definecolor{NNOceanGreen}{HTML}{00857C}
+    \definecolor{NNRed}{HTML}{CB333B}
+
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[x=2.6cm, y=1.3cm,
+          mynode/.style={circle, draw=NNBlue, thick, minimum size=10mm, fill=white, font=\small},
+          inputnode/.style={mynode, fill=NNBlue!8},
+          hiddennode/.style={mynode, fill=NNSeaBlue!15, draw=NNSeaBlue!80!black},
+          outputnode/.style={mynode, fill=NNOceanGreen!15, draw=NNOceanGreen!80!black},
+          conn/.style={draw=NNBlue!40, thick, ->, >=stealth},
+          lbl/.style={font=\large\bfseries}
+        ]
+          % --- Input layer: a^(L)_m in R^512 ---
+          \node[inputnode] (I1) at (0, 2.5)  {$a^{(L)}_{m,1}$};
+          \node[inputnode] (I2) at (0, 1.0)  {$a^{(L)}_{m,2}$};
+          \node[font=\large, NNBlue!60] at (0, -0.2) {$\vdots$};
+          \node[inputnode] (I3) at (0, -1.3) {$a^{(L)}_{m,512}$};
+
+          % --- Hidden layer: R^2048 ---
+          \node[hiddennode] (H1) at (1, 3.2)  {$h_{m,1}^{\mathrm{geno}}$};
+          \node[hiddennode] (H2) at (1, 1.9)  {$h_{m,2}^{\mathrm{geno}}$};
+          \node[hiddennode] (H3) at (1, 0.6)  {$h_{m,3}^{\mathrm{geno}}$};
+          \node[font=\large, NNSeaBlue!80!black] at (1, -0.5) {$\vdots$};
+          \node[hiddennode] (H4) at (1, -1.5) {$h_{m,2048}^{\mathrm{geno}}$};
+
+          % --- Output layer: R^3 ---
+          \node[outputnode] (O1) at (2, 1.8)  {$\hat{y}_{m,0}^{\mathrm{geno}}$};
+          \node[outputnode] (O2) at (2, 0.5)  {$\hat{y}_{m,1}^{\mathrm{geno}}$};
+          \node[outputnode] (O3) at (2, -0.8) {$\hat{y}_{m,2}^{\mathrm{geno}}$};
+
+          % --- Connections ---
+          \foreach \i in {I1,I2,I3}{
+            \foreach \j in {H1,H2,H3,H4}{
+              \draw[conn] (\i) -- (\j);
+            }
+          }
+          \foreach \i in {H1,H2,H3,H4}{
+            \foreach \j in {O1,O2,O3}{
+              \draw[conn] (\i) -- (\j);
+            }
+          }
+
+          % --- Layer labels ---
+          \node[lbl, NNBlue, align=center] at (0, 3.8) {Input};
+          \node[lbl, NNSeaBlue!80!black, align=center] at (1, 4.2) {Hidden};
+          \node[lbl, NNOceanGreen!80!black, align=center] at (2, 3.0) {Output};
+
+          % --- Dimension labels ---
+          \node[font=\small, NNBlue!70] at (0, -2.5) {$\mathbb{R}^{512}$};
+          \node[font=\small, NNSeaBlue!70!black] at (1, -2.5) {$\mathbb{R}^{2048}$};
+          \node[font=\small, NNOceanGreen!70!black] at (2, -2.5) {$\mathbb{R}^{3}$};
+
+          % --- Bias nodes ---
+          \node[mynode, fill=NNRed!10, draw=NNRed!70, minimum size=8mm, font=\scriptsize] (B1) at (0.2, -3.0) {$b_1$};
+          \foreach \j in {H1,H2,H3,H4}{
+            \draw[conn] (B1) -- (\j);
+          }
+          \node[mynode, fill=NNRed!10, draw=NNRed!70, minimum size=8mm, font=\scriptsize] (B2) at (1.2, -3.0) {$b_2$};
+          \foreach \j in {O1,O2,O3}{
+            \draw[conn] (B2) -- (\j);
+          }
+        \end{tikzpicture}
+        \caption{Genotype MLP. A single-hidden-layer network that takes an individual encoder output row $a^{(L)}_m \in \mathbb{R}^{512}$ as input and produces three logits corresponding to the genotype classes $\{0, 1, 2\}$.}
+        \label{fig:geno_mlp}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[x=2.4cm, y=1.3cm,
+          mynode/.style={circle, draw=NNBlue, thick, minimum size=10mm, fill=white, font=\small},
+          inputnode/.style={mynode, fill=NNBlue!8},
+          hiddennode/.style={mynode, fill=NNSeaBlue!15, draw=NNSeaBlue!80!black},
+          outputnode/.style={mynode, fill=NNOceanGreen!15, draw=NNOceanGreen!80!black},
+          conn/.style={draw=NNBlue!40, thick, ->, >=stealth},
+          lbl/.style={font=\large\bfseries}
+        ]
+          % --- LayerNorm box ---
+          \draw[fill=NNBlue!8, line width=0.8pt, rounded corners=5] (-0.6, 3.9) rectangle (0.6, 3.3);
+          \node[font=\scriptsize, NNBlue] at (0, 3.6) {LayerNorm};
+
+          % --- Input layer: \tilde{a} in R^512 ---
+          \node[inputnode] (I1) at (0, 2.5)  {$\tilde{a}_{1}$};
+          \node[inputnode] (I2) at (0, 1.0)  {$\tilde{a}_{2}$};
+          \node[font=\large, NNBlue!60] at (0, -0.2) {$\vdots$};
+          \node[inputnode] (I3) at (0, -1.3) {$\tilde{a}_{512}$};
+
+          % --- Arrow from LayerNorm to input ---
+          \draw[conn] (0, 3.3) -- (0, 2.9);
+
+          % --- Hidden layer: R^2048 ---
+          \node[hiddennode] (H1) at (1, 3.2)  {$h_{m,1}^{\mathrm{pheno}}$};
+          \node[hiddennode] (H2) at (1, 1.9)  {$h_{m,2}^{\mathrm{pheno}}$};
+          \node[hiddennode] (H3) at (1, 0.6)  {$h_{m,3}^{\mathrm{pheno}}$};
+          \node[font=\large, NNSeaBlue!80!black] at (1, -0.5) {$\vdots$};
+          \node[hiddennode] (H4) at (1, -1.5) {$h_{m,2048}^{\mathrm{pheno}}$};
+
+          % --- Output layer: R^1 ---
+          \node[outputnode] (O1) at (2, 0.5) {$\hat{y}^{\mathrm{pheno}}$};
+
+          % --- Connections ---
+          \foreach \i in {I1,I2,I3}{
+            \foreach \j in {H1,H2,H3,H4}{
+              \draw[conn] (\i) -- (\j);
+            }
+          }
+          \foreach \i in {H1,H2,H3,H4}{
+            \draw[conn] (\i) -- (O1);
+          }
+
+          % --- Layer labels ---
+          \node[lbl, NNBlue, align=center] at (0, 4.5) {Input};
+          \node[lbl, NNSeaBlue!80!black, align=center] at (1, 4.2) {Hidden};
+          \node[lbl, NNOceanGreen!80!black, align=center] at (2, 1.7) {Output};
+
+          % --- Dimension labels ---
+          \node[font=\small, NNBlue!70] at (0, -2.5) {$\mathbb{R}^{512}$};
+          \node[font=\small, NNSeaBlue!70!black] at (1, -2.5) {$\mathbb{R}^{2048}$};
+          \node[font=\small, NNOceanGreen!70!black] at (2, -2.5) {$\mathbb{R}^{1}$};
+
+          % --- Bias nodes ---
+          \node[mynode, fill=NNRed!10, draw=NNRed!70, minimum size=8mm, font=\scriptsize] (B1) at (0.2, -3.0) {$b_1$};
+          \foreach \j in {H1,H2,H3,H4}{
+            \draw[conn] (B1) -- (\j);
+          }
+          \node[mynode, fill=NNRed!10, draw=NNRed!70, minimum size=8mm, font=\scriptsize] (B2) at (1.2, -3.0) {$b_2$};
+          \draw[conn] (B2) -- (O1);
+        \end{tikzpicture}
+        \caption{Phenotype MLP. A single-hidden-layer network that takes the mean-pooled encoder output $\bar{a} \in \mathbb{R}^{512}$, normalized by LayerNorm, as input and produces a single logit.}
+        \label{fig:pheno_mlp}
+    \end{subfigure}
+    \caption{Architecture of the two prediction MLPs. Both are single-hidden-layer networks with a hidden dimension of $2048$ and GELU activation, but differ in how the encoder output is used, output dimensionality, and the use of layer normalization.}
+    \label{fig:prediction_mlps}
+\end{figure}
+
+\section{Dropout Regularization} \label{sec:dropout}
+With a large number of learnable parameters, the risk of overfitting during
+training is great. Dropout is a regularization technique that mitigates this
+by randomly setting individual activations to zero during each forward pass
+in training. It is applied to the input embeddings, the attention weight
+matrices, and the hidden-layer activations of both the feed-forward network
+and the prediction MLPs. The weights and biases of the model are not
+modified by dropout; only the intermediate representations that flow through
+the network are affected. By randomly removing different activations at each
+training step, the model is prevented from relying on any single neuron or
+co-adaptation between specific neurons, and is instead forced to distribute
+learned information across multiple elements.
+
+At each training step, a new random dropout mask is drawn independently,
+so the model sees a different subset of active neurons in every forward pass.
+At test time, dropout is turned off entirely: all activations are retained
+and the full model is used, with no averaging over multiple dropout masks
+\citep{Dropout}. For a given vector $x \in \mathbb{R}^{d}$, dropout produces
+\begin{align*}
+    \operatorname{Dropout}(x) = \frac{1}{1 - p}\, x \odot m, \quad
+    m_j \overset{\mathrm{i.i.d.}}{\sim} \operatorname{Bernoulli}(1 - p),
+    \quad j = 1, \dots, d,
+\end{align*}
+where $p \in [0, 1)$ is the dropout rate, $m \in \{0, 1\}^{d}$ is a binary
+mask of the same dimension as $x$ with each entry sampled independently,
+and $\odot$ denotes element-wise multiplication. Each element of $x$ is
+therefore zeroed out with probability $p$ and retained with probability
+$1 - p$. The scaling factor $1/(1-p)$ ensures that the expected value of
+each output element during training equals the corresponding element of $x$
+itself, so that no rescaling is needed when dropout is turned off at test
+time \citep{Srivastava2014dropout, PyTorchDropout}. The dropout rate is set
+to $p = 0.1$ throughout the model \citep{AttentionIsAllYouNeed}.
+
+\begin{table}[h]
+    \centering
+    \caption{Summary of dropout throughout the model. Each row specifies the component and the computation when dropout is included.}
+    \label{tab:dropout_locations}
+    \small
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Component} & \textbf{Computation with Dropout} \\
+        \midrule
+        Input embedding & $\operatorname{Dropout}(E)$ \\
+        \addlinespace
+        Attention weights (per head) & $\operatorname{Dropout}\!\left(\operatorname{softmax}\!\left(\dfrac{Q_h K_h^\top}{\sqrt{d_k}}\right)\right) V_h$ \\
+        \addlinespace
+        Multi-head output & $\operatorname{Dropout}\!\left(\operatorname{concat}(\operatorname{head}_1, \dots, \operatorname{head}_{n_h})\, W_O\right)$ \\
+        \addlinespace
+        Feed-forward network & $W_2\, \operatorname{Dropout}\!\left(\sigma(W_1\, z^{(\ell)}_m + b_1)\right) + b_2$ \\
+        \addlinespace
+        Prediction MLPs hidden layer & Same as feed-forward network \\
+        \bottomrule
+    \end{tabular}
 \end{table}
 
-The model restricts all input sequences to have a uniform length, at a maximum of $L_{\max} = 512$ tokens. Two of these positions are reserved for the special structural tokens $[\text{CLS}]$ and $[\text{SEP}]$. Consequently, the model can at most include $510$ tokens from $\mathcal{T}$ per input sequence. If the $k$-mers sequence, $T$, exceeds this limit (i.e., $L - k + 1 > 510$), it is partitioned into non-overlapping subsequences, each constructed as
+\begin{figure}[h]
+    \centering
+    \definecolor{NNBlue}{HTML}{001965}
+    \definecolor{NNSeaBlue}{HTML}{3B97DE}
+    \definecolor{NNOceanGreen}{HTML}{00857C}
+    \definecolor{NNRed}{HTML}{CB333B}
+
+    \begin{subfigure}[t]{0.45\textwidth}
+        \centering
+        \begin{tikzpicture}[x=1.8cm, y=1.4cm,
+        inputnode/.style={mynode, fill=NNBlue!8},
+          mynode/.style={circle, draw=NNSeaBlue!80!black, thick, minimum size=10mm, fill=NNSeaBlue!15, font=\small},
+          conn/.style={draw=NNSeaBlue!40, thick, ->, >=stealth},
+          lbl/.style={font=\large\bfseries}
+        ]
+          % --- Layer 1 (bottom): 4 nodes ---
+          \foreach \i [evaluate={\y=1.5-\i*1.2;}] in {1,...,4}{
+            \node[mynode] (A\i) at (0, \y) {};
+          }
+
+          % --- Layer 2: 5 nodes ---
+          \foreach \i [evaluate={\y=2.1-\i*1.2;}] in {1,...,5}{
+            \node[mynode] (B\i) at (1, \y) {};
+          }
+
+          % --- Layer 3: 5 nodes ---
+          \foreach \i [evaluate={\y=2.1-\i*1.2;}] in {1,...,5}{
+            \node[mynode] (C\i) at (2, \y) {};
+          }
+
+          % --- Layer 4 (top): 3 nodes ---
+          \foreach \i [evaluate={\y=0.9-\i*1.2;}] in {1,...,3}{
+            \node[mynode] (D\i) at (3, \y) {};
+          }
+
+          % --- Connections ---
+          \foreach \i in {1,...,4}{
+            \foreach \j in {1,...,5}{
+              \draw[conn] (A\i) -- (B\j);
+            }
+          }
+          \foreach \i in {1,...,5}{
+            \foreach \j in {1,...,5}{
+              \draw[conn] (B\i) -- (C\j);
+            }
+          }
+          \foreach \i in {1,...,5}{
+            \foreach \j in {1,...,3}{
+              \draw[conn] (C\i) -- (D\j);
+            }
+          }
+
+        \end{tikzpicture}
+        \caption{Before dropout. All neurons are active and all connections carry signal during the forward pass.}
+        \label{fig:before_dropout}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.45\textwidth}
+        \centering
+        \begin{tikzpicture}[x=1.8cm, y=1.4cm,
+          mynode/.style={circle, draw=NNSeaBlue!80!black, thick, minimum size=10mm, fill=NNSeaBlue!15, font=\small},
+          droppednode/.style={circle, draw=NNRed!70, thick, minimum size=10mm, fill=NNRed!20, font=\small},
+          conn/.style={draw=NNSeaBlue!40, thick, ->, >=stealth},
+          deadconn/.style={draw=NNRed!30, thick, ->, >=stealth, dashed},
+          lbl/.style={font=\large\bfseries}
+        ]
+          % --- Layer 1 (input): 4 nodes, all active ---
+          \node[mynode] (A1) at (0, 0.3) {};
+          \node[mynode] (A2) at (0, -0.9) {};
+          \node[mynode] (A3) at (0, -2.1) {};
+          \node[mynode] (A4) at (0, -3.3) {};
+
+          % --- Layer 2: 5 nodes, nodes 1 and 4 dropped ---
+          \node[droppednode] (B1) at (1, 0.9) {};
+          \node[mynode] (B2) at (1, -0.3) {};
+          \node[mynode] (B3) at (1, -1.5) {};
+          \node[droppednode] (B4) at (1, -2.7) {};
+          \node[mynode] (B5) at (1, -3.9) {};
+
+          % --- Layer 3: 5 nodes, nodes 2 and 5 dropped ---
+          \node[mynode] (C1) at (2, 0.9) {};
+          \node[droppednode] (C2) at (2, -0.3) {};
+          \node[mynode] (C3) at (2, -1.5) {};
+          \node[mynode] (C4) at (2, -2.7) {};
+          \node[droppednode] (C5) at (2, -3.9) {};
+
+          % --- Layer 4 (output): 3 nodes, all active ---
+          \node[mynode] (D1) at (3, -0.3) {};
+          \node[mynode] (D2) at (3, -1.5) {};
+          \node[mynode] (D3) at (3, -2.7) {};
+
+          % --- Connections: Layer 1 -> Layer 2 ---
+          \foreach \i in {A1,A2,A3,A4}{
+            \foreach \j in {B2,B3,B5}{
+              \draw[conn] (\i) -- (\j);
+            }
+          }
+          \foreach \i in {A1,A2,A3,A4}{
+            \foreach \j in {B1,B4}{
+              \draw[deadconn] (\i) -- (\j);
+            }
+          }
+
+          % --- Connections: Layer 2 -> Layer 3 ---
+          \foreach \i in {B2,B3,B5}{
+            \foreach \j in {C1,C3,C4}{
+              \draw[conn] (\i) -- (\j);
+            }
+          }
+          \foreach \i in {B2,B3,B5}{
+            \foreach \j in {C2,C5}{
+              \draw[deadconn] (\i) -- (\j);
+            }
+          }
+          \foreach \j in {C1,C2,C3,C4,C5}{
+            \draw[deadconn] (B1) -- (\j);
+            \draw[deadconn] (B4) -- (\j);
+          }
+
+          % --- Connections: Layer 3 -> Layer 4 ---
+          \foreach \i in {C1,C3,C4}{
+            \foreach \j in {D1,D2,D3}{
+              \draw[conn] (\i) -- (\j);
+            }
+          }
+          \foreach \j in {D1,D2,D3}{
+            \draw[deadconn] (C2) -- (\j);
+            \draw[deadconn] (C5) -- (\j);
+          }
+
+        \end{tikzpicture}
+        \caption{After dropout. Red neurons have been randomly set to zero along with all their connections (dashed), forcing the remaining neurons to compensate.}
+        \label{fig:after_dropout}
+    \end{subfigure}
+    \caption{Illustration of dropout regularization in an MLP. During training, each neuron is independently set to zero with probability $p$. The network on the right shows one possible dropout mask, where the red neurons and their edges (dashed) are dropped for this training step \citet{Dropout}.}
+    \label{fig:dropout}
+\end{figure}
+
+\section{Training Procedure} \label{sec:training}
+Training is done in two phases. First, the encoder is pre-trained using masked learning and an MLP described in \autoref{sec:mgp} by minimizing the loss function \eqref{eq: cross-entro loss}. In this phase, a subset of genotype tokens is masked, and the model is trained to reconstruct the original genotype values from the remaining genomic context. This encourages the encoder to learn representations that capture dependencies between SNPs without using phenotype labels.
+
+After pre-training, the model is fine-tuned for phenotype prediction by minimizing the phenotype loss defined in \autoref{sec:php}. In this phase, the pre-trained encoder is reused, and the phenotype prediction MLP is trained to map the SNP representations from the encoder to a single phenotypic outcome for each individual. Thus, the two prediction tasks are optimized sequentially.
+
+Minimizing these losses requires three steps: a partitioning of the data that allows the model to be trained, monitored, and evaluated, a method for computing the gradient of the loss with respect to every parameter in the model, and an algorithm for translating those gradients into parameter updates. The first is described in \autoref{sec:splits}, the second is provided by backpropagation in \autoref{sec:backprop}, and the third by the Adaptive Moment Estimation with decoupled weight decay (AdamW) optimizer in \autoref{sec:adamw}.
+
+\subsection{Data Splits and Training Iterations} \label{sec:splits}
+A model that performs well on the data it was trained on is not necessarily
+useful. With enough parameters, a model can memorize the training examples
+entirely, known as overfitting, achieving a near-zero training loss while
+failing to make accurate predictions on individuals it has not seen. The
+ability to make accurate predictions on new, unseen data is called
+generalization, and it determines whether the model has learned meaningful
+structure rather than noise specific to the training set.
+
+To measure generalization, the model must be evaluated on data that played
+no role during training. This requires partitioning the available individuals
+into separate sets before training begins. Each set serves a distinct
+purpose: one for updating the model parameters, one for monitoring progress
+and making training decisions, and one for the final evaluation.
+
+The training set is the data on which the model parameters are
+updated. At each training step, a batch of individuals is drawn from the
+training set, passed through the model, and the loss is computed over these
+individuals. The parameters are then adjusted to reduce that loss.
+
+The validation set is a held-out set that the model never trains
+on. After each complete pass through the training set, the loss is computed
+on the validation set to monitor whether the model is still improving
+relative to previous passes, that is, whether the validation loss continues
+to decrease. The validation loss is also used to make training decisions:
+the set of model parameters that achieves the lowest validation loss is kept
+as the final model. Because these decisions depend on the validation set,
+its loss is no longer a fully unbiased estimate of generalization
+performance.
+
+The test set is held out entirely from both parameter updates and
+training decisions. It is evaluated only once, after training is complete,
+on the model checkpoint that achieved the lowest validation loss. This
+ensures that the reported performance reflects the model's ability to
+generalize to data that influenced neither the learned parameters nor the
+choice of when to stop training. All metrics reported in this thesis are
+computed exclusively on the test set \citep[Sec.~7.2]{Hastie2009}.
+
+During pre-training, the $N$ individuals are partitioned into a training set
+consisting of $90\%$ of individuals and a validation set consisting of the
+remaining $10\%$. During fine-tuning, a separate partitioning is used: the
+individuals are split into three disjoint sets consisting of $70\%$ for
+training, $10\%$ for validation, and $20\%$ for testing.
+
+\subsubsection{Epochs and mini-batches}
+The parameters of the model are not updated all at once. Instead, training
+proceeds iteratively on batches and epochs \citep{Goodfellow2016}.
+
+A batch is a subset of $B$ individuals drawn from the training set. At each
+training step, the $B$ individuals in the batch are passed through the
+model, the loss is computed over these $B$ individuals, and the parameters
+are updated based on the resulting gradients. Using batches instead of the
+entire dataset at once serves two purposes. First, for transformer models,
+the full training set is typically too large to fit in memory at once.
+Second, computing the gradient on a batch rather than the full training set
+reduces the computation time per update, as the individuals within each
+batch can be processed in parallel on GPUs
+\citep[Sec.~8.1]{Goodfellow2016}.
+
+One epoch is a single complete pass through all individuals in the training
+set. The training set is partitioned into disjoint batches of size $B$, and
+the model processes each batch exactly once during one epoch. If the
+training set contains $\mathcal{I}_{\mathrm{train}}$ individuals, then one
+epoch consists of $\mathcal{I}_{\mathrm{train}} / B$ parameter updates. The
+training set is shuffled at the beginning of each epoch so that the
+partitioning into batches changes, exposing the model to different
+combinations of individuals across epochs. The validation and test sets are
+not shuffled, as they are used only for evaluation \citep{Goodfellow2016}.
+
+\subsection{Backpropagation} \label{sec:backprop}
+Once the model has processed a batch and computed the loss, the parameters must be adjusted to reduce that loss. The direction in which each parameter should change is determined by the gradient of the loss with respect to that parameter: if the gradient is positive, increasing the parameter would increase the loss, so the parameter should be decreased, and vice versa.
+
+The challenge is that the model is a deep composition of functions, so the loss depends on each parameter through many intermediate computations. Computing the gradient by changing each parameter individually and observing the effect on the loss would require a separate forward pass through the model for each of the millions of parameters, which is computationally infeasible. Backpropagation addresses this by applying the chain rule systematically: starting from the loss, an error signal is propagated backward through each operation, and the gradient with respect to every parameter is extracted along the way. This requires only a single backward pass through the model \citep{Goodfellow2016}.
+
+To illustrate the idea, consider a simplified setting: a single-hidden-layer network of the same form as the prediction MLPs defined in \autoref{sec:prediction_heads}. Although the full SNPbag model contains millions of parameters distributed across $16$ encoder layers, the mechanism by which gradients are computed is identical. The two-layer network below captures the essential structure while keeping the algebra tractable. Given an input $x \in \mathbb{R}^{512}$, the network computes
 \begin{align*}
-T^{(m)} = (t_{p_m}, t_{p_m+1}, \ldots, t_{\min(p_m + 510 - 1, L - k + 1)}), 
-\quad \text{where } p_m = (m - 1) \cdot 510 + 1.
+    h &= \operatorname{GELU}(x\, W_1 + b_1), \\
+    \hat{y} &= h\, W_2 + b_2,
 \end{align*}
-Each resulting subsequence $T^{(m)}$ is then flanked by the structural tokens $[\text{CLS}]$ and $[\text{SEP}]$, which mark the beginning and end of each input sequence, respectively. To ensure a consistent input length of $L_{\max}$ tokens, any sequence with a length lower than $L_{\max}$ are padded with the special token $[\text{PAD}]$. Thus, the input sequence can be defined as
+where $\operatorname{GELU}$ is the activation function defined in \eqref{eq: GELU}. Let $L$ denote the loss computed from $\hat{y}$ and the true target. The goal is to obtain $\partial L / \partial W_1$, $\partial L / \partial b_1$, $\partial L / \partial W_2$, and $\partial L / \partial b_2$.
+
+To see the structure that backpropagation exploits, it helps to decompose the network into a chain of intermediate quantities. Rather than viewing the loss as one monolithic function of the parameters, introduce a name for each intermediate result:
 \begin{align*}
-T^{'(m)} = ([CLS], t_1^{'(m)}, t^{'(m)}_2, \dots, t^{'(m)}_{510}, [SEP]), \quad \text{where } t_j^{'(m)} =
-    \begin{cases}
-        T_{j}^{(m)} & \text{for } 1 \leq j \leq L-k+1 \\
-        {[\text{PAD}]} & \text{for }  L-k+1 < j
-    \end{cases}
+    u &= x\, W_1 + b_1           &&\text{(pre-activation)},   \\
+    h &= \operatorname{GELU}(u)   &&\text{(hidden activation)}, \\
+    \hat{y} &= h\, W_2 + b_2     &&\text{(output)}, \\
+    L &= \ell(\hat{y}, y)            &&\text{(loss)}.
 \end{align*}
-Each of the input sequences, $T$
+Each quantity depends only on the one directly before it, forming a chain
+\begin{align*}
+    x,\, W_1,\, b_1 \;\longrightarrow\; u \;\longrightarrow\; h \;\longrightarrow\; \hat{y} \;\longrightarrow\; L.
+\end{align*}
+A parameter such as $W_1$ does not influence the loss directly: it first changes $u$, which changes $h$, which changes $\hat{y}$, which finally changes $L$. The chain rule captures exactly this: the sensitivity of $L$ to $W_1$ is the product of the sensitivities along each link. For a scalar composition $L = f(g(q(\theta)))$, the chain rule states
+\begin{align}\label{eq:chain_rule}
+    \frac{\partial L}{\partial \theta}
+    = \frac{\partial L}{\partial g} \cdot \frac{\partial g}{\partial q} \cdot \frac{\partial q}{\partial \theta}.
+\end{align}
+Each factor in this product is a local derivative: it measures how sensitive one intermediate quantity is to a small change in the quantity directly before it in the chain. Backpropagation computes these local derivatives one at a time, starting from the loss and working backward, multiplying each new factor into a running product called the error signal \citep{Goodfellow2016}.
 
+\subsection{AdamW Optimizer} \label{sec:adamw}
+With the gradient of the loss available at every parameter, the model is trained by iteratively updating the parameters in a direction that reduces the loss. The simplest such rule is stochastic gradient descent: scale the gradient by a fixed learning rate $\alpha$ and subtract it from the current parameter value. While correct, this approach has two practical shortcomings in deep transformer models. First, the gradients of different parameters can vary much in scale, so a single learning rate may be far too large for some parameters and too small for others. Second, the gradient at any single training step is computed on a batch rather than the full training set, so it is noisy: the direction can fluctuate substantially from step to step, causing the optimizer to oscillate rather than converge smoothly \citep{Adam}.
 
+\subsubsection{Adam}
+Adam maintains two running averages for each parameter: a first-moment estimate that tracks the mean gradient direction, and a second-moment estimate that tracks the gradient magnitude. At training step $t$, let $g_t = \nabla_\theta L(\theta_{t-1})$ denote the gradient of the loss with respect to a parameter $\theta$, computed on the current batch via backpropagation. The two running averages are updated as
+\begin{align*}
+    m_t &= \beta_1\, m_{t-1} + (1 - \beta_1)\, g_t, \\
+    v_t &= \beta_2\, v_{t-1} + (1 - \beta_2)\, g_t \odot g_t,
+\end{align*}
+where $\beta_1, \beta_2 \in [0, 1)$ are the decay rates, typically $\beta_1 = 0.9$ and $\beta_2 = 0.999$, and $\odot$ denotes element-wise multiplication. The first moment $m_t$ is a weighted moving average of the gradients: it carries momentum from previous gradients, smoothing the noise from the batch gradients so that the update direction reflects a running trend rather than just the current step. This momentum also accelerates convergence, as the accumulated gradients allows the optimizer to take larger effective steps in directions of consistent descent. The second moment $v_t$ tracks the squared magnitude of each parameter's gradient, reflecting how much it has fluctuated across training steps. This gives the optimizer a sense of how noisy each parameter's gradient is: parameters with volatile gradients receive smaller, more cautious updates, while those with stable gradients are updated more aggressively.
 
+Because $m_0$ and $v_0$ are initialized to zero, the estimates are biased toward zero in the early steps of training. To see why, consider the first step: $m_1 = (1 - \beta_1) g_1$, which is only $10\%$ of the gradient when $\beta_1 = 0.9$. Adam corrects for this with bias-corrected estimates
+\begin{align*}
+    \hat{m}_t = \frac{m_t}{1 - \beta_1^t}, \qquad
+    \hat{v}_t = \frac{v_t}{1 - \beta_2^t},
+\end{align*}
+which approach $m_t$ and $v_t$ as $t$ grows but counteract the under-estimation when $t$ is small. The parameter update is then
+\begin{align*}
+    \theta_t = \theta_{t-1} - \alpha\, \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \varepsilon},
+\end{align*}
+where $\alpha$ is the learning rate, commonly set to $0.001$, and $\varepsilon$ is a small constant (typically $10^{-8}$) that prevents division by zero. Dividing by $\sqrt{\hat{v}_t}$ rescales the effective step size for each parameter individually: parameters whose gradients have been consistently large receive smaller updates, preventing them from overshooting, while parameters whose gradients have been small receive proportionally larger updates, preventing them from being left behind. The Adam algorithm is summarized in \autoref{alg:adam}.
+
+\begin{algorithm}[h]
+\caption{Adam optimizer \citep{Adam}.}
+\label{alg:adam}
+\begin{algorithmic}[1]
+\Require $\alpha$: learning rate
+\Require $\beta_1, \beta_2 \in [0, 1)$: exponential decay rates for the moment estimates
+\Require $\varepsilon$: small constant for numerical stability
+\Require $L(\theta)$: stochastic objective function with parameters $\theta$
+\Require $\theta_0$: initial parameter vector
+\State $m_0 \leftarrow 0$ \Comment{Initialize first moment vector}
+\State $v_0 \leftarrow 0$ \Comment{Initialize second moment vector}
+\State $t \leftarrow 0$ \Comment{Initialize timestep}
+\While{$\theta_t$ not converged}
+    \State $t \leftarrow t + 1$
+    \State $g_t \leftarrow \nabla_\theta L(\theta_{t-1})$ \Comment{Gradient of the loss at timestep $t$}
+    \State $m_t \leftarrow \beta_1 \cdot m_{t-1} + (1 - \beta_1) \cdot g_t$ \Comment{Update first moment estimate}
+    \State $v_t \leftarrow \beta_2 \cdot v_{t-1} + (1 - \beta_2) \cdot g_t \odot g_t$ \Comment{Update second moment estimate}
+    \State $\hat{m}_t \leftarrow m_t / (1 - \beta_1^t)$ \Comment{Bias-corrected first moment}
+    \State $\hat{v}_t \leftarrow v_t / (1 - \beta_2^t)$ \Comment{Bias-corrected second moment}
+    \State $\theta_t \leftarrow \theta_{t-1} - \alpha \cdot \hat{m}_t / (\sqrt{\hat{v}_t} + \varepsilon)$ \Comment{Update parameters}
+\EndWhile
+\State \Return $\theta_t$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{From Adam to AdamW}
+A common technique for preventing the parameters from growing too large
+during training is weight decay, a form of regularization applied within
+the optimization procedure. The idea is equivalent to adding a penalty
+term $\frac{\lambda}{2} \|\theta\|^2$ to the loss function, where $\lambda
+\geq 0$ controls the penalty strength. Taking the gradient of this
+augmented loss introduces an additional term $\lambda\,\theta$ in the
+gradient, which pushes each parameter toward zero at every update step.
+The intuition is that large parameter values often indicate overfitting,
+and penalizing parameter magnitude encourages simpler, more generalizable
+solutions.
+
+AdamW extends Adam by applying this weight decay directly to the
+parameters as a separate term in the update rule, rather than adding
+$\lambda\,\theta$ to the gradient before it enters the adaptive moment
+estimates. This distinction matters because Adam rescales the gradient by
+the inverse of $\sqrt{\hat{v}_t}$: if weight decay were included in the
+gradient, parameters with large historical gradients would be penalized
+less than those with small gradients, undermining the uniformity of the
+regularization. By decoupling the two, AdamW ensures that all parameters
+are shrunk toward zero by the same proportion $\alpha \lambda$ at every
+step, regardless of their gradient history
+\begin{align*}
+    m_t &= \beta_1\, m_{t-1} + (1 - \beta_1)\, g_t, \\
+    v_t &= \beta_2\, v_{t-1} + (1 - \beta_2)\, g_t \odot g_t, \\
+    \hat{m}_t &= \frac{m_t}{1 - \beta_1^t}, \qquad
+    \hat{v}_t = \frac{v_t}{1 - \beta_2^t}, \\
+    \theta_t &= \theta_{t-1}
+      - \alpha \left(
+        \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \varepsilon}
+        + \lambda\, \theta_{t-1}
+      \right),
+\end{align*}
+where $\lambda \geq 0$ is the weight decay coefficient. In the update
+rule, the term $\lambda\,\theta_{t-1}$ multiplies the current parameter
+value by $(1 - \alpha\lambda)$ at each step, which shrinks it toward zero:
+after $T$ steps without any gradient signal, a parameter would be reduced
+to $(1 - \alpha\lambda)^T\,\theta_0$, which decays geometrically toward
+zero. The AdamW algorithm is summarized in \autoref{alg:adamw}.
+
+\begin{algorithm}[h]
+\caption{AdamW optimizer \citep{AdamW}.}
+\label{alg:adamw}
+\begin{algorithmic}[1]
+\Require $\alpha$: learning rate
+\Require $\beta_1, \beta_2 \in [0, 1)$: exponential decay rates for the moment estimates
+\Require $\epsilon$: small constant for numerical stability
+\Require $\lambda$: weight decay coefficient
+\Require $L(\theta)$: stochastic objective function with parameters $\theta$
+\Require $\theta_0$: initial parameter vector
+\State $m_0 \leftarrow 0$ \Comment{Initialize first moment vector}
+\State $v_0 \leftarrow 0$ \Comment{Initialize second moment vector}
+\State $t \leftarrow 0$ \Comment{Initialize timestep}
+\While{$\theta_t$ not converged}
+    \State $t \leftarrow t + 1$
+    \State $g_t \leftarrow \nabla_\theta L(\theta_{t-1})$ \Comment{Gradient of the loss at timestep $t$}
+    \State $m_t \leftarrow \beta_1 \cdot m_{t-1} + (1 - \beta_1) \cdot g_t$ \Comment{Update first moment estimate}
+    \State $v_t \leftarrow \beta_2 \cdot v_{t-1} + (1 - \beta_2) \cdot g_t \odot g_t$ \Comment{Update second moment estimate}
+    \State $\hat{m}_t \leftarrow m_t / (1 - \beta_1^t)$ \Comment{Bias-corrected first moment}
+    \State $\hat{v}_t \leftarrow v_t / (1 - \beta_2^t)$ \Comment{Bias-corrected second moment}
+    \State $\theta_t \leftarrow \theta_{t-1} - \alpha \left( \hat{m}_t / (\sqrt{\hat{v}_t} + \epsilon) + \lambda\, \theta_{t-1} \right)$ \Comment{Update parameters with decoupled weight decay}
+\EndWhile
+\State \Return $\theta_t$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Evaluation Metrics}
+\label{sec:evaluation}
+Training a model and evaluating its performance require different
+objectives. The loss function is what the optimizer minimizes, but it is
+not necessarily what we care about. A low cross-entropy tells us that the
+model assigns high probability to the correct answers, but it does not
+directly tell us how often the model gets the answer right or how well it
+distinguishes cases from controls. Evaluation metrics provide this: they
+quantify model performance in terms that are interpretable, comparable
+across models, and aligned with the use of the predictions.
+
+The cross-entropy losses defined in \eqref{eq: cross-entro loss} and
+\eqref{eq: BCE loss} serve a dual role: they are the objectives that the
+optimizer minimizes during training, and they are also monitored on the
+validation and test sets to track generalization. The evaluation metrics
+described below, by contrast, are not used for training. They are computed
+only after the model has produced its predictions and serve solely to
+assess how well those predictions match the true values.
+
+During pre-training, the masked genotype predictions are evaluated by the
+masked accuracy: the fraction of masked positions at which the predicted
+genotype class matches the true genotype. During fine-tuning, the
+phenotype predictions are evaluated by the classification accuracy at a
+probability threshold of $0.5$ and by the area under the receiver
+operating characteristic curve (AUC). In all cases, the metrics are
+computed on the test set introduced in \autoref{sec:splits}.
+
+\subsection{Accuracy}
+\label{sec:accuracy}
+One classification metric is accuracy: the fraction of predictions that match the true values. Given $N$ individuals with true values $(y_1, \dots, y_N)^{\top}$ and predicted labels $(\hat{y}_1, \dots, \hat{y}_N)^{\top}$, accuracy is
+\begin{align}
+    \mathrm{Accuracy} = \frac{1}{N} \sum_{i=1}^{N} \mathbbm{1}\{\hat{y}_i = y_i\},
+    \label{eq:accuracy}
+\end{align}
+where $\mathbbm{1}\{\cdot\}$ is the indicator function.
+
+During pre-training, accuracy is computed over the masked positions only. For each masked position $m \in \mathcal{M}$, the predicted genotype is the class with the highest logit, $\hat{g}_m = \arg\max_{c \in \{0,1,2\}} \hat{y}_{m,c}^{\mathrm{geno}}$, and the masked accuracy is
+\begin{align}
+    \mathrm{Accuracy}_{\mathrm{mask}} = \frac{1}{|\mathcal{M}|} \sum_{m \in \mathcal{M}} \mathbbm{1}\{\hat{g}_m = G_{i,m}\},
+    \label{eq:masked-accuracy}
+\end{align}
+where $G_{i,m}$ is the true genotype of individual $i$ at position $m$. Unmasked positions are excluded because the model observes the true genotype
+at those positions in the input, so predicting them correctly requires no
+learned structure and would inflate the metric without reflecting any real
+capability \citep{Devlin2019, SNPbag}.
+
+During fine-tuning, the predicted phenotype label is obtained by assigning
+each individual to the most probable class under the fitted model. Since
+the predicted probability is $p_i = \sigma(\hat{y}^{\mathrm{pheno}}_i)$,
+this amounts to predicting case ($\hat{y}_i = 1$) when $p_i \geq 0.5$ and
+control ($\hat{y}_i = 0$) otherwise:
+\begin{align}
+    \hat{y}_i = \mathbbm{1}\bigl\{\sigma(\hat{y}^{\mathrm{pheno}}_i)
+    \geq 0.5\bigr\},
+    \label{eq:pheno-threshold}
+\end{align}
+where $\sigma(\cdot)$ is the sigmoid function as defined in
+\autoref{sec:php}. Accuracy is then the fraction of individuals whose
+predicted label matches the true phenotype.
+
+However, accuracy can be misleading when the classes are imbalanced \citep{Fawcett2006}. Consider a case/control study where $5\%$ of individuals are cases: predicting control for every individual yields $95\%$ accuracy while being entirely uninformative. For this reason, accuracy is reported alongside the AUC described in the following subsection.
+
+\subsection{Area Under the Receiver Operating Characteristic Curve}
+\label{sec:auc}
+Accuracy requires committing to a fixed decision threshold, yet in
+phenotype prediction the right threshold is rarely known in advance. The
+receiver operating characteristic (ROC) curve avoids this problem by
+evaluating the classifier across all possible thresholds at once
+\citep{Fawcett2006}.
+
+For a binary classifier that outputs a continuous score
+$s_i = \sigma(\hat{y}^{\mathrm{pheno}}_i) \in [0, 1]$ and a threshold
+$\tau \in [0, 1]$, the predicted label is case ($\hat{y}_i = 1$) if
+$s_i \geq \tau$ and control ($\hat{y}_i = 0$) otherwise. For each
+$\tau$, the classifier's performance is summarized by two conditional
+probabilities: the true positive rate (TPR), which is the probability of
+correctly predicting case among individuals who are truly cases, and the
+false positive rate (FPR), which is the probability of incorrectly
+predicting case among individuals who are truly controls
+\begin{align}
+    \mathrm{TPR}(\tau)
+    &= P(\hat{y}_i = 1 \mid y_i = 1)
+    = \frac{\mathrm{TP}(\tau)}
+           {\mathrm{TP}(\tau) + \mathrm{FN}(\tau)},
+    \label{eq:tpr} \\[4pt]
+    \mathrm{FPR}(\tau)
+    &= P(\hat{y}_i = 1 \mid y_i = 0)
+    = \frac{\mathrm{FP}(\tau)}
+           {\mathrm{FP}(\tau) + \mathrm{TN}(\tau)},
+    \label{eq:fpr}
+\end{align}
+where $\mathrm{TP}(\tau)$ is the number of cases correctly predicted as
+cases (true positives), $\mathrm{FN}(\tau)$ is the number of cases
+incorrectly predicted as controls (false negatives), $\mathrm{FP}(\tau)$
+is the number of controls incorrectly predicted as cases (false positives),
+and $\mathrm{TN}(\tau)$ is the number of controls correctly predicted as
+controls (true negatives) at threshold $\tau$.
+
+The ROC curve plots $\mathrm{TPR}(\tau)$ against $\mathrm{FPR}(\tau)$ as
+$\tau$ varies from $1$ to $0$, as depicted in \autoref{fig:roc}. At
+$\tau = 1$ every individual is predicted control, so
+$\mathrm{TPR} = \mathrm{FPR} = 0$ and the curve starts at the origin. As
+$\tau$ decreases, more individuals are classified as cases, increasing
+both TPR and FPR until $\tau = 0$, where every individual is predicted
+case and the curve reaches $(1, 1)$. A perfect classifier achieves
+$\mathrm{TPR} = 1$ and $\mathrm{FPR} = 0$ simultaneously, meaning it
+correctly identifies all cases while producing no false alarms among
+controls; this corresponds to the top-left corner of the plot, marked by
+the cross in \autoref{fig:roc}. A random classifier, which assigns scores
+independently of the true label, lies on the diagonal
+$\mathrm{TPR} = \mathrm{FPR}$.
+
+The area under the ROC curve (AUC) summarizes the entire curve into one
+number, corresponding to the shaded region in \autoref{fig:roc}
+\begin{align}
+    \mathrm{AUC} = \int_0^1 \mathrm{TPR}\bigl(\mathrm{FPR}^{-1}(u)\bigr)
+    \, du.
+    \label{eq:auc}
+\end{align}
+An AUC of $0.5$ corresponds to the diagonal in \autoref{fig:roc} (random
+guessing), while $1.0$ corresponds to perfect classification.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\linewidth]{fig/img/ROC/ROC.png}
+    \caption{Receiver operating characteristic (ROC) curve for a logistic regression model fitted to simulated data. The data consist of $n = 1000$ observations with a binary response generated from a logistic model with three covariates, and the predicted probabilities are obtained from a logistic regression. The curve plots the true positive rate against the false positive rate as the decision threshold $\tau$ varies from $1$ to $0$. The shaded area corresponds to the AUC, and the dashed diagonal represents a random classifier ($\mathrm{AUC} = 0.5$).}
+    \label{fig:roc}
+\end{figure}

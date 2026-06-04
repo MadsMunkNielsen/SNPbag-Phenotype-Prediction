@@ -1,257 +1,222 @@
-
-
 \chapter{Clinical Data and Polygenic Risk Score}
-This chapter provides the genetic and statistical foundation for genome-wide association studies (GWAS) and polygenic risk scores (PRS). It begins with the structure of the human genome and explains how genetic variation is captured through single nucleotide polymorphisms (SNPs). The organisation of SNP-array data is then outlined, together with the quality control steps required before any association analysis can be considered reliable.
+This chapter provides the genetic and statistical foundation for genome-wide association studies (GWAS) and polygenic risk scores (PRS). It begins by describing the structure of the human genome and explains how genetic variation is captured through single nucleotide polymorphisms (SNPs). The organisation of SNP-array data is then outlined, together with the quality control steps required before any association analysis can be considered reliable.
 
-As genetic data is correlated and influenced by ancestry, the chapter covers linkage disequilibrium, population structure, and the use of principal component analysis to account for these patterns. Lastly, the chapter describes how SNP effects are estimated in GWAS using the methods PLINK and LDpred2, and how these estimated effects are used to compute polygenic risk scores (PRS).
-% Biobanks collect and store genetic data with phenotypic information from large numbers of individuals. The phenotypic data is measurable traits such as diagnoses, lifestyle factors, and disease outcomes. With the genetic data and phenotypic information stored by biobanks, polygenetic risk scores can be computed. A polygenic risk score summarizes the contribution of genetic variation to a trait by aggregating the small effects of many individual variants into a single quantitative measure of genetic liability.
+As genetic data is correlated and influenced by ancestry, the chapter covers linkage disequilibrium, population structure, and the use of principal component analysis (PCA) to account for these patterns. Lastly, the chapter describes how SNP effects are estimated in GWAS using the methods PLINK and LDpred2 and how these estimated effects are used to compute PRS.
 
 \section{Genome Structure and Biallelic SNP Encoding}
-Inside each cell, the nucleus contains most of the deoxyribonucleic acid (DNA), which stores biological information in the specific order of its four chemical bases: adenine (A), guanine (G), cytosine (C), and thymine (T). The bases pair to form complementary matches, with each base on one strand of the DNA molecule aligning with its partner on the opposite strand. Together the two strands form a spiraling double helix. \citep[pp. 6-9]{Genetics101}
+Inside each cell, the nucleus contains most of the deoxyribonucleic acid (DNA), which stores biological information in the specific order of its four chemical bases: adenine (A), guanine (G), cytosine (C), and thymine (T). The bases pair to form complementary matches, and each base on one strand of the DNA molecule aligns with its partner on the opposite strand. Together, the two strands form a spiralling double helix \citep[pp. 6-9]{Genetics101}.
 
-In humans, each cell contains $23$ pairs of chromosomes, with one chromosome in each pair inherited from each parent. Of these pairs, $22$ are autosomes and one is the pair of sex chromosomes. Chromosomes consist of tightly packed DNA, and their numbering roughly reflects their size, with lower-numbered chromosomes generally containing more base pairs. Each chromosome pair is homologous, meaning the two chromosomes share the same arrangement of loci. The alleles at these loci, which represent different versions of the same gene, may differ between the chromosomes, reflecting differences in their underlying nucleotide sequences. \citep{HomologuosChromosome}
+In humans, each cell contains $23$ pairs of chromosomes, with one chromosome in each pair inherited from each parent. Of these pairs, $22$ are autosomes and one is the pair of sex chromosomes. Chromosomes consist of tightly packed DNA and their numbering roughly reflects their size, with lower-numbered chromosomes generally containing more base pairs. Each chromosome pair is homologous, meaning the two chromosomes share the same arrangement of loci. The alleles at these loci, which represent different variants of the same DNA sequence, may differ between the chromosomes, reflecting differences in their underlying nucleotide sequences \citep{HomologuosChromosome}.
 
-Each chromosome carries many genes, which are specific sequences of DNA bases. Every gene has its own unique sequence and can vary in length. Across all chromosomes, the total number of genes are approximately $20.000$ to $25.000$. The collection of all genes make up the genome. \citep[pp. 6-9]{Genetics101}. All individuals share approximately $99\%$ of their genetic composition, the remaining variation contributes to the phenotypic (a measurable trait or outcome) diversity observed among individuals. At specific loci, this variation often appears as SNPs, which are single-base substitutions. Across the roughly three-billion-base human genome, SNPs occur approximately once every 100 to 300 bases \citep{Genetics101}. A SNP is said to be biallelic when a given genomic position exhibits exactly two nucleotide variants within a population. These two variants make up the SNP’s alleles i.e. for a given SNP at locus $j$, the set of observed alleles can be expressed as
+Each chromosome carries many genes, which are specific sequences of DNA bases. Across all chromosomes, the total number of genes is approximately $20000$ to $25000$. The collection of all genes makes up the genome \citep[pp. 6-9]{Genetics101}. A phenotype is most often a measurable trait or outcome of an individual, such as height, disease status, or blood pressure. All individuals share approximately $99\%$ of their genetic sequence; the remaining variation contributes to the phenotypic diversity observed between individuals. At specific loci, this variation often appears as SNPs, which are single-base substitutions. Across the roughly three-billion-base human genome, SNPs occur approximately once every 100 to 300 bases \citep{Genetics101}.
+
+A biallelic SNP at locus $m$ has two possible alleles
 \begin{align*}
-A_j = \{a_{j,1}, a_{j,2}\}, \quad a_{j,1}, a_{j,2} \in \{A, B\}.
+A_m = \{a_{m,1}, a_{m,2}\}, \quad a_{m,1}, a_{m,2} \in \{A, G, C, T\}.
 \end{align*}
-Since each individual carries two alleles at locus $j$, one on each chromosome, the set of possible genotypes for a biallelic SNP at locus $j$ is
+Since each individual carries one allele from each parent, there are three possible genotypes
 \begin{align*}
-G_j = \{(a_{j,1}, a_{j,1}),\ (a_{j,1}, a_{j,2}),\ (a_{j,2}, a_{j,2})\}.
+\mathcal{G}_m = \{(a_{m,1}, a_{m,1}),\ (a_{m,1}, a_{m,2}),\ (a_{m,2}, a_{m,2})\}.
 \end{align*}
-Thus, the biallelic SNP at locus $j$ can be encoded numerically as
+In GWAS, genotypes are commonly encoded numerically, with the genotype of individual i at locus m represented as
 \begin{align*}
-    g_{j, i} \in \{0, 1, 2\},
+    g_{i,m} \in \{0, 1, 2\},
 \end{align*}
-where $g_{j,0} = 0$ indicating homozygosity for the major allele, $g_{j,1} = 1$ indicating heterozygosity, and $g_{j,2} = 2$ indicating homozygosity for the minor allele. \cite{Graffelman2007} 
-
-\section{Genome-wide Association Studies}
-The purpose of genome-wide association studies (GWAS) is to assess whether differences in allele frequencies at specific loci are associated with phenotypic differences among individuals of similar ancestral background. Conducting such analyses requires the collection of genomic data. Although whole-genome sequencing would be ideal, collecting complete genomic data for all individuals is expensive. Instead, a more cost-effective approach is to use a SNP-array, which genotypes a selected subset of the estimated $10$ million SNPs found in the human genome. \citep{LaFramboise2009}
-
-SNP-arrays produce large datasets, and loading those files can be computationally heavy. To reduce this computation burden, the data is provided as binary PLINK data, which consists of three files: The first, a binary file (\texttt{$^\ast$.bed}), that stores individual identifiers (IDs) and genotype data. The remaining two files are plain text files: the (\texttt{$^\ast$.fam}) file, contains individual-level information, and the (\texttt{$^\ast$.bim}) file, contains details about genetic markers. \citep{Marees2018}
-
-As the collection of genomic data is imperfect, quality control (QC) procedures must be conducted to ensure the reliability of the dataset. The first QC is to filter SNPs and individuals with more than $20\%$ missingness, with SNPs being filtered before individuals. Another QC is to identifies mismatches between the reported sex and the X-chromosome homozygosity. The homozygosity estimate should be $>0.8$ for males and $>0.2$ for females. \citep{Marees2018}
-
-SNPs that deviate from Hardy–Weinberg equilibrium (HWE) are removed, as such deviations can indicate genotyping errors. Under HWE, the allele and genotype frequencies at a locus are expected to remain stable across generations, therefore, when the observed genotype distribution at a SNP departs from these expectations, it suggests that the genotypes may not be accurate. 
-
-Consider a biallelic SNP with alleles $A$ and $B$, where the population frequency of allele $A$ is $p$ and for allele $B$ is $1 - p$. Let $n_{AA}$, $n_{AB}$, and $n_{BB}$ denote the observed genotype counts in a sample of $n$ individuals. Then the maximum-likelihood estimate of the allele $A$ frequency is
-\begin{align}\label{MLE: frequency}
-\hat{p}_{A} = \frac{2n_{AA} + n_{AB}}{2n},
-\end{align}
-as the probability of observing an exact amount of $A$ and $B$ alleles follows a binomial model. Under Hardy–Weinberg equilibrium, the expected genotype counts are obtained by substituting \eqref{MLE: frequency} into the equilibrium proportions,
-\begin{align*}
-e_{AA} = n\hat{p}_A^{2}, \quad
-e{AB} = 2n\hat{p}_A(1 - \hat{p}_A), \quad
-e{BB} = n(1 - \hat{p}_A)^{2}. \quad
-\end{align*}
-The chi-square statistic for testing deviation from HWE is
-\begin{align*}
-\chi^{2}
-&= \frac{(n_{AA} - e_{AA})^{2}}{e_{AA}}
- + \frac{(n_{AB} - e_{AB})^{2}}{e_{AB}}
- + \frac{(n_{BB} - e_{BB})^{2}}{e_{BB}} .
-\end{align*}
-Under the null hypothesis of Hardy--Weinberg equilibrium, this statistic follows a $\chi^{2}_{1}$ distribution. \cite{Graffelman2007}
+where $g_{i,m} = 0$ indicates homozygosity for the major allele, $g_{i,m} = 1$ indicates heterozygosity, and $g_{i,m} = 2$ indicates homozygosity for the minor allele \citep{Graffelman2007}. The full genotype matrix is $G \in \{0,1,2\}^{N \times M}$, with rows indexing individuals and columns indexing SNPs. The $m$-th column $G_m \in \{0,1,2\}^N$ contains the genotypes at SNP $m$ across all $N$ individuals.
 
 
-\newpage
-\begin{table}[H]
-\centering
-\caption{QC steps conducted prior to genetic association analysis}
-\renewcommand{\arraystretch}{1.3}
-\begin{tabularx}{\textwidth}{p{3.9cm} X}
-\toprule
-\textbf{QC Step} & \textbf{Description} \\
-\midrule
+\section{Genotype Data Structure and Quality Control}
 
-\textbf{Missingness of SNPs and individuals} 
-& Removes SNPs and individuals with a great amount of missing data. A missingness threshold of $20\%$ is commonly used. SNP filtering is performed before individual filtering. \\
-\midrule
+Genotype data from SNP arrays are typically stored in binary PLINK format (.bed, .bim, .fam files). The .bed file contains the compressed genotype matrix where each row represents an individual and each column represents a SNP. The .bim file provides SNP metadata that includes chromosome, SNP identifier, genetic distance, base-pair position, and the two alleles. The .fam file contains sample information: family ID, individual ID, paternal ID, maternal ID, sex, and phenotype \citep{Marees2018}.
 
-\textbf{Sex discrepancy}
-& Identifies mismatches between reported sex and X-chromosome heterozygosity pattern. The homozygosity estimate should be $>0.8$ for males and $>0.2$ for females. \\
-\midrule
-
-\textbf{Minor allele frequency (MAF)}
-& Removes SNPs with low minor allele frequency, since these variants are potentially measurement error. A common cutoff is a minor allele frequency below $0.01$.\\
-\midrule
-
-\textbf{Hardy-Weinberg equilibrium (HWE)}
-& Excludes SNPs that strongly deviate from HWE, a sign of genotyping error or selection. Suggested cutoffs: $p < 10^{-6}$ (quantitative traits), or $p < 10^{-10}$ in cases and $p < 10^{-6}$ in controls (binary traits). \\
-\midrule
-
-\textbf{Heterozygosity}
-& Removes individuals with unusually high or low heterozygosity. The typical cutoff is outside $\pm 3$ standard deviations of the sample mean. \\
-\midrule
-
-\textbf{Relatedness}
-& Uses identity-by-descent estimates to detect related individuals. Those with $\hat{\pi} > 0.2$ (approximately second-degree relatives) are usually removed unless the study design requires retaining them. \\
-\midrule
-
-\textbf{Population stratification}
-& Assesses the population structure using PCA. Independent SNPs are selected for the analysis, and roughly the first $10$ principal components are included as covariates for correction in later analyses.\\
-\bottomrule
-\label{tab: Quality control control}
-\end{tabularx}
-\end{table}
-
-
-\section{Linkage Disequilibrium}
-A central property of genomic data is that SNPs are not independently distributed across the genome. Instead, alleles at nearby loci tend to be correlated due to linkage disequilibrium (LD). Consider two biallelic loci $j$ and $k$ with minor allele frequencies $p_j$ and $p_k$. Let $h_{ab}$ denote the haplotype frequency of allele $a$ at locus $j$ jointly with allele $b$ at locus $k$. Under independence, one would expect
-\[
-h_{a_{j,2} a_{k,2}} = p_j p_k.
-\]
-Deviation from this expectation is quantified by the LD coefficient
-\[
-D_{jk} = h_{a_{j,2} a_{k,2}} - p_j p_k.
-\]
-A standardized measure widely used in GWAS is the squared correlation
-\[
-r_{jk}^2 = \frac{D_{jk}^2}{p_j(1-p_j) p_k(1-p_k)}.
-\]
-If $r_{jk}^2 \approx 1$, the two SNPs carry almost identical genetic information; if $r_{jk}^2 \approx 0$, they behave independently.
-
-LD decays with recombination, and empirical LD patterns reflect population history, recombination hotspots, and demographic events. Because LD induces correlation among SNPs, it affects both GWAS effect estimation and polygenic score construction. Modern PRS methods, including LDpred2, explicitly incorporate LD information to avoid biased effect estimates.
-
-\section{Reference Genome Assemblies and Harmonization}
-All GWAS analyses depend on a reference genome assembly, such as GRCh37 or GRCh38, which defines chromosomal coordinates and allele annotations. Let each SNP be represented as
-\[
-s_j = (\mathrm{CHR}_j, \mathrm{BP}_j, a_{j,1}, a_{j,2}),
-\]
-where $\mathrm{CHR}_j$ is the chromosome index, $\mathrm{BP}_j$ is the base-pair coordinate, and $(a_{j,1}, a_{j,2})$ is the ordered allele pair.
-
-Harmonization between a GWAS summary dataset and a target cohort requires ensuring:
-
-\begin{enumerate}
-    \item Chromosomal positions correspond to the same reference genome.
-    \item Alleles are aligned such that the effect allele in the GWAS matches the same physical allele in the target data.
-    \item Strand-ambiguous SNPs (A/T and C/G) are removed or retained only when allele frequencies permit safe alignment.
-\end{enumerate}
-
-Given allele frequencies $p_j^{\mathrm{GWAS}}$ and $p_j^{\mathrm{TARGET}}$, consistency is typically verified using
-\[
-\left| p_j^{\mathrm{GWAS}} - p_j^{\mathrm{TARGET}} \right| < \varepsilon,
-\]
-with $\varepsilon$ often chosen as $0.1$. SNPs that fail this check are excluded.
-
-A harmonized reference genome is also essential for constructing LD correlation matrices required in LD-aware PRS methods.
-
-\section{Population Structure and PCA}
-Population structure arises when allele frequencies differ systematically between subgroups due to ancestry. If unaccounted for, it can induce spurious associations in GWAS. Principal component analysis (PCA) provides a quantitative description of such structure.
-
-Let $X \in \mathbb{R}^{n \times m}$ denote the centered and scaled genotype matrix for $n$ individuals and $m$ LD-pruned SNPs. The empirical covariance matrix is
-\[
-\Sigma = \frac{1}{m} X X^\top.
-\]
-PCA decomposes this as
-\[
-\Sigma = U \Lambda U^\top,
-\]
-where $U$ contains orthonormal eigenvectors (principal components, PCs) and $\Lambda$ contains the eigenvalues.
-
-The projection of individual $i$ onto PC $k$ is
-\[
-z_{ik} = U_{ik}.
-\]
-The leading PCs typically correspond to ancestry differences. In GWAS, PCs enter the regression model as covariates:
-\[
-Y_i = \beta_0 + \beta_j g_{ij} + \sum_{k=1}^{K} \gamma_k z_{ik} + \varepsilon_i,
-\]
-removing confounding due to ancestry.
-
-\section{Estimation of SNP Effects Using PLINK}
-After QC and PCA, GWAS effect estimation proceeds by fitting univariate regression models for each SNP. For a quantitative trait, PLINK fits
-\[
-Y_i = \alpha + \beta_j g_{ij} + \mathbf{c}_i^\top \boldsymbol{\gamma} + \varepsilon_i,
-\]
-where $\mathbf{c}_i$ includes covariates such as age, sex, and PCs. The ordinary least squares estimator is
-\[
-\hat{\beta}_j 
-= \frac{\sum_{i} (g_{ij} - \bar{g}_j)(Y_i - \bar{Y})}
-       {\sum_{i}(g_{ij} - \bar{g}_j)^2}.
-\]
-
-For binary traits, PLINK uses logistic regression:
-\[
-\Pr(Y_i = 1 \mid g_{ij}, \mathbf{c}_i) 
-= \text{logit}^{-1} \!\left( \alpha + \beta_j g_{ij} + 
-\mathbf{c}_i^\top \boldsymbol{\gamma} \right).
-\]
-
-The resulting set $\{\hat{\beta}_j\}$ forms the GWAS summary statistics used for polygenic risk scoring.
-
-
-\section{LDpred2: Bayesian Adjustment of SNP Effect Sizes}
-LDpred2 improves PRS accuracy by incorporating LD information into effect-size estimation. Let $\boldsymbol{\beta} = (\beta_1,\ldots,\beta_m)$ denote true SNP effects, and let $\hat{\boldsymbol{\beta}}$ denote observed GWAS estimates. LDpred2 models the relationship as
-\[
-\hat{\boldsymbol{\beta}} \mid \boldsymbol{\beta} 
-\sim \mathcal{N}(R\boldsymbol{\beta}, \sigma^2 I),
-\]
-where $R$ is the LD correlation matrix estimated from a reference panel.
-
-A spike-and-slab prior is assumed:
-\[
-\beta_j \sim (1-p)\delta_0 
-+ p \mathcal{N}(0, \tau^2),
-\]
-where $p$ is the proportion of causal SNPs and $\tau^2$ the variance of non-zero effects. LDpred2 computes the posterior mean effect size
-\[
-\hat{\beta}_j^{\text{post}}
-= \mathbb{E}[\beta_j \mid \hat{\boldsymbol{\beta}}, R].
-\]
-
-In the infinitesimal model (LDpred2-inf),
-\[
-\beta_j \sim \mathcal{N}\!\left(0, \frac{h^2}{m} \right),
-\]
-yielding
-\[
-\hat{\boldsymbol{\beta}}^{\mathrm{inf}}
-= \left( R + \frac{m \sigma^2}{h^2} I \right)^{-1} \hat{\boldsymbol{\beta}}.
-\]
-
-Finally, the polygenic risk score for individual $i$ is
-\[
-\mathrm{PRS}_i 
-= \sum_{j=1}^{m} g_{ij} \hat{\beta}_j^{\mathrm{post}}.
-\]
-
-LDpred2-auto further estimates $h^2$, $p$, and $\tau^2$ automatically, eliminating manual hyperparameter tuning.
-
-\section{GWAS Summary Statistics and Manhattan Plots}
-GWAS results are typically summarized by a $p$-value for each SNP, testing the null hypothesis $H_0\!:\,\beta_j = 0$ in the association model. Let $p_j$ denote the $p$-value corresponding to SNP $j$. Because millions of SNPs are tested simultaneously, visualization of these results requires a compact representation of the genome-wide pattern of association.
-
-A Manhattan plot is a standard graphical tool for displaying GWAS summary statistics. On the horizontal axis, SNPs are ordered by their chromosomal position, often grouped by chromosome index $\mathrm{CHR}_j$ and base-pair coordinate $\mathrm{BP}_j$. On the vertical axis, the transformed statistic
-\[
--\log_{10}(p_j)
-\]
-is plotted. Under the null hypothesis with no true associations, $p_j$ is approximately uniformly distributed on $(0,1)$, and hence $-\log_{10}(p_j)$ is concentrated near zero, forming a noisy baseline. SNPs strongly associated with the phenotype appear as vertical peaks.
-
-To account for multiple testing, a genome-wide significance threshold is often chosen as
-\[
-\alpha_{\text{GW}} = 5 \times 10^{-8},
-\]
-corresponding to a horizontal reference line at
-\[
--\log_{10}(\alpha_{\text{GW}}).
-\]
-SNPs exceeding this threshold are considered genome-wide significant. Because of LD, clusters of associated SNPs typically form peaks rather than isolated points, and the width of these peaks reflects local LD structure.
-
-Manhattan plots thus serve two main purposes: they provide a global overview of where in the genome association signals occur, and they facilitate the identification of loci that might merit further fine-mapping or functional investigation. In the context of polygenic risk scores, Manhattan plots are useful for visually assessing the sparsity or density of strong associations, but PRS construction typically uses effect sizes across the entire genome rather than only genome-wide significant SNPs.
-
-
+Before an analysis can be conducted, quality control (QC) is needed to ensure reliable results. Some of the QC procedures implemented are:
 \begin{itemize}
-    \item LD 
-    \item Ancestry - PCA
-    \item Test for significance - Kontroler type 1 fejl
-    \item PRS - Flere forskellige metoder: PLINK og LDPRED2-grid - herunder skal arvelighed inkluderes
-    \item Lav eksempel på PRS
-    \item Styr på kilder 
+    \item \textbf{Call rate filtering}: Variants and samples with excessive missing data are removed with a typical threshold of $1\%$ \citep{Marees2018}.
+    
+    \item \textbf{Minor allele frequency (MAF)}: SNPs with MAF below a threshold (e.g., 0.05) are excluded to avoid statistical instability from rare variants \citep{Marees2018}.
+    
+    \item \textbf{Sex verification}: Reported sex in the .fam file is checked against genetic sex reported in the sex-chromosome \citep{Marees2018}.
 \end{itemize}
+Besides the QC, it is also important to consider ancestry and relatedness when conducting genetic analyses. Failure to do so can lead to spurious associations and inflated type I error, as allele frequencies often correlate with both trait distributions and geographic ancestry. Ancestry is accounted for through principal component analysis of the genotype matrix, where the genotypes of individuals with similar ancestry will cluster, see \autoref{fig:pca_population_structure}. These principal components can then be included as covariates in regression models to adjust for population structure, thereby minimizing confounding between genetic and geographic variation \citep{Uffelmann2021}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\linewidth]{fig//img//PCA/PCA_population_structure.png}
+    \caption{Principal component analysis (PCA) of a simulated genotype matrix with $N = 450$ individuals from three ancestral populations and $M = 5000$ SNPs. Each point is one individual, coloured by population. The first two principal components explain $3.4\%$ and $3.3\%$ of the total variance respectively, and clearly separate the three populations into distinct clusters.}
+\label{fig:pca_population_structure}
+\end{figure}
 
 
-% For instance, when computing a polygenic risk score for colorectal cancer, the \texttt{$^\ast$.bed} file contains the genotype data for all individuals in both the case and control groups, along with their corresponding IDs. The \texttt{$^\ast$.fam} file contains subject-level information such as family structure, sex, and disease status. The \texttt{$^\ast$.bim} file specifies the genomic position and related details for each SNP. See Figure X (Figuren skal vise et udsnit af, hvordan filerne kan se ud.).
+
+\section{Genome-Wide Association Study and Polygenic Risk Scores}
+
+A genome-wide association study (GWAS) estimates the association between each SNP and a phenotype by fitting a separate linear regression for each of the $M$ SNPs. For SNP $m \in \{1, \dots, M\}$, the model is
+\begin{align} \label{eq:gwas_fixed}
+    y = W\alpha + G_m \beta_m + \varepsilon, \quad \varepsilon \sim \mathcal{N}(0, \sigma_\varepsilon^2 I_N),
+\end{align}
+where $y \in \R^N$ is a vector of phenotypes, $W \in \R^{N \times K}$ is a matrix of covariates (including an intercept) with fixed effects $\alpha \in \R^K$, $G_m \in \R^N$ is a vector of genotypes at SNP $m$, $\beta_m \in \R$ is the effect of SNP $m$ on the phenotype, and $\varepsilon \in \R^N$ is a vector of residual errors. In the case of binary phenotypes, the logit link function is used in place of the identity link. This is the model implemented by PLINK2 \citep{Chang2015, Uffelmann2021}.
+
+The maximum predictive power of any model based on additive genetic effects is bounded by the heritability
+\begin{align*}
+    h^2 = \frac{\sigma_G^2}{\sigma_y^2},
+\end{align*}
+where $\sigma_G^2$ is the genetic variance and $\sigma_y^2 = \sigma_G^2 + \sigma_\varepsilon^2$ is the total phenotypic variance \citep{Zaitlen2012}.
+
+A Polygenic Risk Score (PRS) aggregates the estimated effects of many SNPs to predict an individual's genetic predisposition to a phenotype. For individual $i$, the PRS is
+\begin{align*}
+\text{PRS}_i = \sum_{m \in \mathcal{S}} g_{i,m}\, \hat{\beta}_m,
+\end{align*}
+where $\hat{\beta}_m$ is the effect size estimated by the GWAS and $\mathcal{S} \subseteq \{1, \dots, M\}$ is a subset of SNPs whose effects are statistically significant, typically those with $p$-value below $5 \times 10^{-8}$ \citep{Uffelmann2021}.
+
+SNPs that are physically close on the genome tend to be inherited together, which is known as linkage disequilibrium (LD). Their correlation is captured by the LD matrix $R \in \mathbb{R}^{M \times M}$ with elements
+\begin{align*}
+R_{mk} = \text{Cor}(G_m, G_k).
+\end{align*}
+LD is a problem for the simple PRS above: if two correlated SNPs both reflect the same causal signal, including both double-counts that contribution. LDpred2 \citep{Prive2020} addresses this by re-estimating effect sizes using Bayesian shrinkage that accounts for LD, as described in \autoref{sec:ldpred2}.
+
+\section{LDpred2: Bayesian Polygenic Prediction}
+\label{sec:ldpred2}
+
+LDpred2 computes PRS as a Bayesian inference problem, deriving posterior effect sizes that account for LD. It depends on summary statistics, $\hat{\beta}_{marg} = (\hat{\beta}_1, \ldots, \hat{\beta}_M)^\top$, and an external LD reference \citep{Prive2020}.
+
+\subsection{From Marginal Effects to Joint Effects}
+Fundamental for LDpred2 is the relationship between marginal GWAS effects and joint effects.
+
+Let $S \in \R^{M \times M}$ be a diagonal matrix with standard deviations of $M$ variants, $C_N = I_N - \frac{1}{N}\mathbf{1}\mathbf{1}^T$ be the centering matrix, $G \in \R^{N \times M}$ the genotype matrix, and $y \in \R^{N}$ a vector of phenotypes. When solving a joint multiple regression model with all variants and an intercept $\alpha$
+\begin{align*}
+\begin{bmatrix} \hat{\alpha} \\ \hat{\gamma}_{joint} \end{bmatrix} = \left(\begin{bmatrix} \mathbf{1} & G \end{bmatrix}^T \begin{bmatrix} \mathbf{1} & G \end{bmatrix}\right)^{-1} \begin{bmatrix} \mathbf{1} & G \end{bmatrix}^T y,
+\end{align*}
+which simplifies to
+\begin{align*}
+\hat{\gamma}_{joint} = (G^T C_N G)^{-1} G^T C_N y.
+\end{align*}
+The marginal GWAS, by contrast, fits each variant one at a time in a separate regression. The resulting marginal effect estimates on the allele scale are
+\begin{align*}
+\hat{\gamma}_{marg} = \frac{1}{N-1} S^{-2} G^T C_N y.
+\end{align*}
+The correlation matrix of the standardized genotypes is
+\begin{align*}
+R = \frac{1}{N-1} S^{-1} G^T C_N G S^{-1}.
+\end{align*}
+Combining these expressions gives the fundamental relationship between joint and marginal effects
+\begin{align} \label{eq: gamma joint}
+\hat{\gamma}_{joint} = S^{-1} R^{-1} S \hat{\gamma}_{marg}.
+\end{align}
+In practice, the LD matrix $R$ is either computed directly from the
+individual-level genotype data when available, or estimated from an
+external reference panel matched to the ancestry of the GWAS cohort
+when only summary statistics are available \citep{Prive2020}.
+
+Before computing $\hat{\gamma}_{joint}$ with LDpred2, effect sizes and standard errors must be transformed to a standardized scale. This transformation begins with the estimate $\hat{\gamma}_m$ of the marginal effect for variant $m$. Let $\tilde{y}$ and $\tilde{G}_m$ denote the phenotype and genotype vectors after residualizing out $K$ covariates, ensuring that $\hat{\gamma}_m$ captures the direct effect of the variant unconfounded by these covariates. The squared standard error of $\hat{\gamma}_m$ is then given by
+\begin{align} \label{eq: se gamma}
+\text{se}(\hat{\gamma}_m)^2 = \frac{(\tilde{y} - \hat{\gamma}_m \tilde{G}_m)^T (\tilde{y} - \hat{\gamma}_m \tilde{G}_m)}{(N-K-1)\tilde{G}_m^T \tilde{G}_m} \approx \frac{\tilde{y}^T \tilde{y}}{N \tilde{G}_m^T \tilde{G}_m} \approx \frac{\var(y)}{N\,\var(G_m)},
+\end{align}
+where the first approximation holds when the sample size is assumed much larger than the number of covariates ($N \gg K$), and the genetic contribution is weak such that $\tilde{y} \gg \hat{\gamma}_m^2 \tilde{G}_m$. Solving \eqref{eq: se gamma} for $\text{sd}(G_m)$ yields
+\begin{align}\label{eq: Standardized effect}
+\text{sd}(G_m) \approx \frac{\text{sd}(y)}{\text{se}(\hat{\gamma}_m)\sqrt{N}} \implies
+\underbrace{\text{sd}(G_m) \cdot \hat{\gamma}_m}_{\text{standardized effect}} \approx \frac{\hat{\gamma}_m}{\text{se}(\hat{\gamma}_m)}\frac{\text{sd}(y)}{\sqrt{N}} = \underbrace{\frac{\hat{\gamma}_m}{\text{se}(\hat{\gamma}_m)}}_{Z\text{-score}} \frac{1}{\sqrt{N}},
+\end{align}
+where $\text{sd}(y)$ cancels out in the joint model \eqref{eq: gamma joint} and is therefore set to $1$ without loss of generality. With the standard errors from \eqref{eq: se gamma} and the standardized effect sizes from \eqref{eq: Standardized effect}, the requirements for LDpred2 have been met \citep{Prive2020}.
 
 
 
-% Let $\Sigma = \{A, T, G, C \}$ denote the set of DNA bases, where $A$ pairs with $T$ and $G$ pairs with $C$ to form complementary base pairs. A DNA sequence $S = (s_1, s_2, \ldots, s_L)$, with $L \in \mathbb{N}$, represents the ordered bases along one strand of the double helix, since each base uniquely determines its complementary counterpart, specifying one strand fully determines the sequence of the other. 
+\subsection{Gibbs Sampling}
+\label{sec:gibbs}
+
+The posterior distribution over the effect sizes $\beta = (\beta_1, \dots, \beta_M)^\top$ given the observed summary statistics, the LD matrix, and the hyper-parameters does not admit a closed-form solution. LDpred2 approximates the posterior using Gibbs sampling \citep{GemanGeman1984, GelmanBDA2013}.
+
+Gibbs sampling generates samples from a joint distribution $\pi(\beta_1, \dots, \beta_M)$ by iteratively sampling each component from its full conditional distribution while holding all other components fixed. Concretely, at iteration $t$, the sampler cycles through $m = 1, \dots, M$ and draws
+\begin{align*}
+    \beta_m^{(t)} \sim \pi\!\left(\beta_m \;\middle|\; \beta_1^{(t)}, \dots, \beta_{m-1}^{(t)}, \beta_{m+1}^{(t-1)}, \dots, \beta_M^{(t-1)}\right),
+\end{align*}
+using the most recently sampled values for all other components. Under mild regularity conditions, the sequence of iterates $\{\beta^{(t)}\}_{t \geq 1}$ converges in distribution to the target posterior $\pi(\beta \mid \hat{\beta}_{marg}, R, h^2, \pi_c)$ regardless of the initial values \citep{GelmanBDA2013}.
+
+Because the early iterates are influenced by the initialisation and may not yet reflect the target posterior, the first $N_{\text{burn-in}}$ iterations are discarded. Once the chain has stabilised, the posterior means from the subsequent $N_{\text{iter}}$ iterations are accumulated and averaged to produce the final effect size estimates.
+
+
+\subsection{The LDpred2 Model}
+The standardized effect size $\beta_m = S_{m,m}\gamma_m$ relates to
+the allele-scale effect $\gamma_m$ through the genotype standard
+deviation $S_{m,m}$. The prior on $\beta_m$ is assumed to be
+\begin{align*}
+\beta_m \sim \begin{cases}
+\mathcal{N}\left(0, \frac{h^2}{M\pi_c}\right) & \text{with probability } \pi_c, \\
+0 & \text{otherwise}.
+\end{cases}
+\end{align*}
+where $\pi_c \in (0,1]$ is the proportion of causal variants, $M$ is the total number of variants, $h^2$ is the SNP heritability, $\gamma_m$ denotes effects on the allele scale, and $S_{m,m}$ is the standard deviation of the standardized genotype for variant $m$. This prior uses the assumption that only a fraction $\pi_c$ of variants contributes to phenotypic prediction, each with variance proportional to the total heritability divided among causal variants. Conditional on the true joint effects $\beta$, the sampling distribution of the marginal estimates is approximately normal
+\begin{align*}
+\hat{\beta}_{marg} \mid \beta \sim \mathcal{N}(R\beta, V),
+\end{align*}
+where $R$ is the LD matrix and $V = \text{diag}\left(\frac{1}{N}\right)$ approximates the variance of the marginal effect estimates for large sample sizes $N$, assuming standardized genotypes. The posterior distribution $p(\beta \mid \hat{\beta}_{marg}, R, h^2, \pi_c)$ lacks a closed-form solution due to the spike-and-slab structure of the prior; LDpred2 therefore uses the Gibbs sampler described in \autoref{sec:gibbs}, iteratively drawing each $\beta_m$ from its conditional posterior given all other effects $\beta_{-m}$ and the observed data \citep{Prive2020}.
+
+The conditional sampling for variant $m$ depends on the residualized marginal effect
+\begin{align*}
+\tilde{\beta}_m = \hat{\beta}_m - \sum_{k \neq m} R_{mk}\beta_k = \hat{\beta}_m - R_{m,-m}\beta_{-m},
+\end{align*}
+where $R_{m,-m}$ denotes the $m$-th row of $R$ excluding the diagonal element $R_{mm} = 1$, and $\beta_{-m}$ represents the vector of current effect estimates with $\beta_m$ excluded. This removes the effects that variant $m$ borrows from correlated neighbours through LD, leaving only the evidence attributable to variant $m$ itself \citep{Prive2020}.
+
+Given the residualized effect $\tilde{\beta}_m$, the posterior probability that variant $m$ is causal is obtained by applying Bayes' theorem to the spike-and-slab prior. The two hypotheses are compared: under the causal hypothesis ($\gamma_m = 1$), $\tilde{\beta}_m$ was drawn from the normal component $\mathcal{N}(0, h^2 / M\pi_c)$; under the non-causal hypothesis ($\gamma_m = 0$), $\tilde{\beta}_m$ should be zero. The resulting posterior probability is
+\begin{align*}
+\bar{p}_m = \frac{1}{1 + \frac{1-\pi_c}{\pi_c} \sqrt{1 + \frac{Nh^2}{M\pi_c}} \exp\left(-\frac{1}{2} \cdot \frac{N\tilde{\beta}_m^2}{1 + \frac{M\pi_c}{Nh^2}}\right)}.
+\end{align*}
+When the residualized effect is large, the exponential term vanishes and $\bar{p}_m$ approaches $1$; when it is close to zero, $\bar{p}_m$ falls back toward the prior $\pi_c$.
+
+The effect size $\beta_m$ is then sampled from a two-component mixture: with probability $\bar{p}_m$ it is drawn from a normal distribution centred near $\tilde{\beta}_m$ but shrunk toward zero, and with probability $1 - \bar{p}_m$ it is set to exactly zero
+\begin{align*}
+\beta_m \mid \tilde{\beta}_m \sim \begin{cases} \mathcal{N}\left(\frac{\tilde{\beta}_m}{1 + \frac{M\pi_c}{Nh^2}}, \frac{1}{N\left(1 + \frac{M\pi_c}{Nh^2}\right)}\right) & \text{with probability } \bar{p}_m, \\ 0 & \text{with probability } 1 - \bar{p}_m. \end{cases}
+\end{align*}
+Averaging over both cases gives the posterior mean
+\begin{align*}
+\mathbb{E}[\beta_m \mid \tilde{\beta}_m] = \bar{p}_m \cdot \frac{\tilde{\beta}_m}{1 + \frac{M\pi_c}{Nh^2}},
+\end{align*}
+which serves as the point estimate for prediction. The Gibbs sampler iterates through all $M$ variants, updating each effect conditional on the current values of all others. After discarding the first $N_{\text{burn-in}}$ iterations, the posterior means from the remaining $N_{\text{iter}}$ iterations are averaged to produce the final effect estimates. Algorithm \autoref{alg:ldpred2} summarises the complete procedure \citep{Prive2020}.
+
+\begin{algorithm}
+\caption{LDpred2 Gibbs Sampler with hyper-parameters $\pi_c$ and $h^2$}
+\label{alg:ldpred2}
+\begin{algorithmic}[1]
+\State $\hat{\beta} \leftarrow (\hat{\gamma} / \text{se}(\hat{\gamma})) \cdot \sqrt{N}$ \Comment{Initialize standardized marginal effects}
+\State $\Omega \leftarrow 0$ \Comment{Initialize posterior means accumulator}
+\For{$t = 1, \ldots, N_{\text{burn-in}} + N_{\text{iter}}$}
+    \For{each variant $m$}
+        \State Compute $\tilde{\beta}_m = \hat{\beta}_m - \sum_{k \neq m} R_{mk}\beta_k$ \Comment{Residualize against other variants}
+        \State Compute $\bar{p}_m$ \Comment{Posterior probability of causality}
+        \State Sample $\gamma_m \sim \text{Bernoulli}(\bar{p}_m)$
+        \If{$\gamma_m = 1$}
+            \State Sample $\beta_m \sim \mathcal{N}\left(\frac{\tilde{\beta}_m}{1 + \frac{M\pi_c}{Nh^2}}, \frac{1}{N\left(1 + \frac{M\pi_c}{Nh^2}\right)}\right)$
+        \Else
+            \State $\beta_m \leftarrow 0$
+        \EndIf
+        \State $\omega_m \leftarrow \bar{p}_m \cdot \frac{\tilde{\beta}_m}{1 + \frac{M\pi_c}{Nh^2}}$ \Comment{Posterior mean contribution}
+    \EndFor
+    \If{$t > N_{\text{burn-in}}$}
+        \State $\Omega \leftarrow \Omega + \omega$ \Comment{Accumulate after burn-in}
+    \EndIf
+\EndFor
+\State $\Omega \leftarrow \Omega / N_{\text{iter}}$ \Comment{Average posterior means}
+\State \Return $\Omega \cdot \text{se}(\hat{\gamma}) / \sqrt{N}$ \Comment{Scale back to original units}
+\end{algorithmic}
+\end{algorithm}
+
+The output of \autoref{alg:ldpred2} is a vector of posterior mean effect sizes $\hat{\beta}^{\text{LDpred2}} \in \mathbb{R}^M$ on the allele scale. These replace the naive marginal GWAS estimates in the PRS formula: for individual $i$, the LDpred2 polygenic risk score is
+\begin{align*}
+    \text{PRS}_i^{\text{LDpred2}} = \sum_{m=1}^{M} g_{i,m}\, \hat{\beta}_m^{\text{LDpred2}}.
+\end{align*}
+Note that the summation runs over all $M$ variants, not a thresholded subset $\mathcal{S}$, because the Bayesian shrinkage has already driven non-causal effects toward zero.
+
+\subsection{LDpred2-auto: Automatic Hyper-parameter Estimation}
+
+The LDpred2 model requires specification of two hyper-parameters: the proportion of causal variants $\pi_c$ and the SNP heritability $h^2$. LDpred2-auto extends the model by estimating both directly within the Gibbs sampling procedure, eliminating the need for a grid search or an external validation dataset \citep{Prive2020}.
+
+The heritability is estimated from the current state of the sampler as
+\begin{align*}
+\hat{h}^2 = \hat{\beta}^T R \hat{\beta},
+\end{align*}
+where $\hat{\beta}$ denotes the vector of current effect sizes. For the causal proportion, let $M_c = \sum_m \mathbbm{1}(\beta_m \neq 0)$ denote the number of non-zero variants in the current iteration. With a uniform prior $\pi_c \sim \text{Beta}(1,1)$, conjugacy gives
+\begin{align*}
+\pi_c \mid M_c \sim \text{Beta}(1 + M_c, 1 + M - M_c),
+\end{align*}
+from which $\pi_c$ is sampled directly at each iteration. Both estimates are updated after each complete pass through all variants, allowing the model to adaptively learn the genetic architecture from the data itself \citep{Prive2020}.
+
+To assess convergence, LDpred2-auto is run as multiple independent chains with diverse initialisations of $\pi_c$ on a logarithmic scale. Chains that diverge are discarded, and the effect sizes from the remaining chains are averaged or selected based on validation performance to produce the final estimates \citep{Prive2020}.

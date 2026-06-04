@@ -1,3 +1,24 @@
-% incl/misc/abstract.tex : project abstract
-% ------------------------------------------------------------------------------
-% The abstract is a short summary of the document, displayed on the title page
+This thesis develops SNPbag, a transformer-based model for binary
+phenotype prediction from genotype data, and compares it against
+LDpred2-auto, a Bayesian polygenic risk score method. The model uses a
+BERT-style encoder trained in two stages: first by reconstructing
+randomly masked genotypes from their surrounding genomic context, then
+by fine-tuning for phenotype prediction. Both methods are evaluated on
+synthetic data from the HAPNEST project, comprising $100000$
+individuals and $14000$ SNPs from chromosome~22, with phenotypes
+simulated under a logistic disease model with $500$ causal variants and
+$10\%$ prevalence.
+
+Pre-training validation accuracy improved from $84.18\%$ at $1000$
+individuals to $90.19\%$ at $100000$, with no signs of overfitting,
+indicating that the model captures meaningful genomic structure and has
+not yet saturated. For phenotype prediction, neither method achieved
+strong discriminative performance: SNPbag obtained a test AUC of $0.54$
+and LDpred2-auto $0.51$, both only marginally above the random baseline
+of $0.5$. These results reflect the severe computational constraints
+under which both methods operated — SNPbag was fine-tuned for a single
+epoch with a frozen encoder, and LDpred2-auto was limited to $14000$
+SNPs from a single chromosome — rather than a fundamental limitation of
+either approach. Extending the model to longer sequences, more training
+data, and full encoder fine-tuning are the most important directions for
+future work.

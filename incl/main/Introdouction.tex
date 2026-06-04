@@ -1,0 +1,59 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+Understanding why some individuals develop a disease while others do not
+is one of the central questions in modern medicine. For many common
+diseases, including diabetes, heart disease, and psychiatric disorders,
+the answer lies partly in genetics: individuals inherit different
+combinations of genetic variants, and these variants collectively
+influence their risk of disease. If genetic risk could be accurately
+predicted from an individual's DNA, it would enable earlier
+interventions, targeted screening, and personalised treatment strategies
+\citep{Torkamani2018}.
+
+Over the past two decades, genome-wide association studies (GWAS) have
+identified thousands of genetic variants associated with complex traits
+\citep{Visscher2017}. Each variant typically contributes only a small
+amount to disease risk, but when aggregated across the genome, these
+contributions can be substantial. The standard tool for this aggregation
+is the polygenic risk score (PRS), which sums the estimated effects of
+many variants weighted by an individual's genotype
+\citep{Choi2020}. Bayesian approaches such as LDpred2 represent the
+current state of the art, accounting for the correlation structure
+between nearby variants and using prior assumptions about the genetic
+architecture to produce more accurate predictions \citep{Prive2023}.
+
+However, all existing PRS methods share a common limitation: they assume
+that genetic variants contribute to disease risk in a purely additive
+manner. There is growing evidence that nonlinear and context-dependent
+interactions between variants play a role in disease risk
+\citep{Cordell2009}, and capturing these interactions requires models
+that go beyond the additive framework. Transformer models, originally
+developed for natural language processing \citep{AttentionIsAllYouNeed},
+offer a potential path forward. These models learn complex dependencies
+within sequential data through self-attention, and genetic data has a
+similar sequential structure: the dependencies between nearby variants,
+known as linkage disequilibrium, are analogous to the dependencies
+between words in a sentence \citep{SNPbag}.
+
+Applying transformers to genetic data is, however, primarily a
+computational challenge. A typical genome-wide dataset contains millions
+of variants across hundreds of thousands of individuals, and the memory
+requirements of transformer models scale with sequence length. Training
+such models requires significant GPU infrastructure, careful memory
+management, and practical decisions about batch sizes, sequence lengths,
+and training schedules that are all constrained by the available
+hardware. This thesis is therefore a computational statistics project in
+equal measure to a modelling project: a substantial portion of the work
+has been dedicated to implementing, profiling, and scaling the training
+pipeline across multiple GPUs, to data handling and preprocessing at
+scale, and to understanding the tradeoffs between model capacity, data
+throughput, and wall-clock time. The modelling decisions described in
+this thesis are inseparable from these engineering constraints.\\
+
+The purpose of this thesis is to develop and evaluate SNPbag, a
+transformer-based model for binary phenotype prediction from genotype
+data. The evaluation involves comparing the predictive performance of
+SNPbag against LDpred2-auto \citep{Prive2023} on simulated phenotypes
+with known genetic architecture, using classification accuracy and AUC
+on a shared held-out test set.
