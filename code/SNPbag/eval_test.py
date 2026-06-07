@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from dataset import load_plink, encode_genotypes, encode_snp_ids
 from model import build_phenotype_regressor, load_pretrained_encoder, PhenotypeRegressor
-from phenotype import classification_metrics, split_individuals
+from finetune_phenotype import classification_metrics, split_individuals
 
 # Load data
 bim, fam, geno = load_plink("TestData/NewSyn_100k_cpbayes")

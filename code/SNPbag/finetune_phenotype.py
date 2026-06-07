@@ -27,26 +27,154 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from dataset import NUM_GENO_TOKENS, encode_genotypes, encode_snp_ids, load_plink
+from dataset import MISSING_TOKEN_ID, NUM_GENO_TOKENS, encode_genotypes, encode_snp_ids, load_plink
 from model import PhenotypeRegressor, build_phenotype_regressor, load_pretrained_encoder
-from phenotype import (
-    PHENOTYPE_KINDS,
-    binarize_phenotype,
-    build_phenotype_loaders,
-    classification_metrics,
-    generate_synthetic_phenotype,
-    impute_missing_dosages,
-    split_individuals,
-)
-from SNPbag.visualization import plot_phenotype_summary
+from visualization import plot_phenotype_summary
 
 try:
     import wandb
 except ModuleNotFoundError:
     wandb = None  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# Phenotype utilities
+# ---------------------------------------------------------------------------
+
+class PhenotypeDataset(Dataset):
+
+    def __init__(
+        self,
+        geno_tokens: torch.Tensor,
+        snp_ids: torch.Tensor,
+        phenotypes: torch.Tensor,
+        indices: Optional[torch.Tensor] = None,
+    ) -> None:
+        super().__init__()
+        self.geno_tokens = geno_tokens
+        self.snp_ids = snp_ids
+        self.phenotypes = phenotypes.float()
+        self.indices = torch.as_tensor(indices, dtype=torch.long) if indices is not None else None
+
+        if self.geno_tokens.ndim != 2:
+            raise ValueError("geno_tokens must be 2D: [num_individuals, num_snps].")
+        if self.snp_ids.ndim != 1:
+            raise ValueError("snp_ids must be 1D: [num_snps].")
+        if self.phenotypes.ndim != 1:
+            raise ValueError("phenotypes must be 1D: [num_individuals].")
+        if self.geno_tokens.shape[0] != self.phenotypes.shape[0]:
+            raise ValueError("geno_tokens and phenotypes must agree on individual count.")
+        if self.geno_tokens.shape[1] != self.snp_ids.shape[0]:
+            raise ValueError("geno_tokens and snp_ids must agree on SNP count.")
+
+    def __len__(self) -> int:
+        if self.indices is None:
+            return self.geno_tokens.shape[0]
+        return self.indices.shape[0]
+
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        real_idx = int(self.indices[idx]) if self.indices is not None else idx
+        return {
+            "x_geno": self.geno_tokens[real_idx],
+            "x_snp": self.snp_ids,
+            "y": self.phenotypes[real_idx],
+        }
+
+
+def impute_missing_dosages(
+    geno_tokens: torch.Tensor,
+    missing_token_id: int = MISSING_TOKEN_ID,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    dosages = geno_tokens.float()
+    missing = dosages == float(missing_token_id)
+    observed = dosages.masked_fill(missing, 0.0)
+    counts = (~missing).sum(dim=0).clamp_min(1)
+    means = observed.sum(dim=0) / counts
+    imputed = torch.where(missing, means.unsqueeze(0).expand_as(dosages), dosages)
+    return imputed, means
+
+
+def split_individuals(
+    num_individuals: int,
+    val_fraction: float,
+    test_fraction: float,
+    seed: int,
+) -> Dict[str, torch.Tensor]:
+    if num_individuals < 3:
+        raise ValueError("At least 3 individuals are required for train/val/test splits.")
+    if not 0.0 <= val_fraction < 1.0:
+        raise ValueError("val_fraction must be in [0, 1).")
+    if not 0.0 <= test_fraction < 1.0:
+        raise ValueError("test_fraction must be in [0, 1).")
+    if val_fraction + test_fraction >= 1.0:
+        raise ValueError("val_fraction + test_fraction must be less than 1.")
+
+    generator = torch.Generator().manual_seed(seed)
+    perm = torch.randperm(num_individuals, generator=generator)
+    val_size = max(1, int(round(num_individuals * val_fraction)))
+    test_size = max(1, int(round(num_individuals * test_fraction)))
+
+    while num_individuals - val_size - test_size < 1:
+        if val_size >= test_size and val_size > 1:
+            val_size -= 1
+        elif test_size > 1:
+            test_size -= 1
+        else:
+            raise ValueError("Split fractions leave no room for a training set.")
+
+    test_idx = perm[:test_size]
+    val_idx = perm[test_size : test_size + val_size]
+    train_idx = perm[test_size + val_size :]
+    return {"train": train_idx, "val": val_idx, "test": test_idx}
+
+
+def build_phenotype_loaders(
+    geno_tokens: torch.Tensor,
+    snp_ids: torch.Tensor,
+    phenotypes: torch.Tensor,
+    split_indices: Dict[str, torch.Tensor],
+    batch_size: int,
+    num_workers: int,
+    seed: int,
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    train_ds = PhenotypeDataset(geno_tokens, snp_ids, phenotypes, indices=split_indices["train"])
+    val_ds = PhenotypeDataset(geno_tokens, snp_ids, phenotypes, indices=split_indices["val"])
+    test_ds = PhenotypeDataset(geno_tokens, snp_ids, phenotypes, indices=split_indices["test"])
+
+    train_gen = torch.Generator().manual_seed(seed)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers, generator=train_gen)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    return train_loader, val_loader, test_loader
+
+
+def regression_metrics(y_true: Sequence[float], y_pred: Sequence[float]) -> Dict[str, float]:
+    true_tensor = torch.as_tensor(y_true, dtype=torch.float32)
+    pred_tensor = torch.as_tensor(y_pred, dtype=torch.float32)
+    mse = torch.mean((pred_tensor - true_tensor) ** 2).item()
+    denom = torch.sum((true_tensor - true_tensor.mean()) ** 2).item()
+    if denom <= 1e-12:
+        r2 = 0.0
+    else:
+        numer = torch.sum((pred_tensor - true_tensor) ** 2).item()
+        r2 = 1.0 - numer / denom
+    return {"mse": mse, "r2": r2}
+
+
+def classification_metrics(y_true: Sequence[float], y_prob: Sequence[float]) -> Dict[str, float]:
+    from sklearn.metrics import roc_auc_score
+    true_tensor = torch.as_tensor(y_true, dtype=torch.float32)
+    prob_tensor = torch.as_tensor(y_prob, dtype=torch.float32)
+    pred_labels = (prob_tensor >= 0.5).long()
+    accuracy = (pred_labels == true_tensor.long()).float().mean().item()
+    try:
+        auc = float(roc_auc_score(true_tensor.numpy(), prob_tensor.numpy()))
+    except ValueError:
+        auc = float("nan")
+    return {"accuracy": accuracy, "auc": auc}
 
 
 # ---------------------------------------------------------------------------
@@ -61,8 +189,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pretrained-checkpoint", type=Path, required=True,
                    help="Checkpoint produced by train_pretrain.py")
     p.add_argument("--plink-prefix", type=Path, default=default_prefix)
-    p.add_argument("--phenotype-kind", type=str, choices=list(PHENOTYPE_KINDS), default=None,
-                   help="Run a single phenotype kind; omit to run all kinds")
+    p.add_argument("--phenotype-kind", type=str, default=None,
+                   help="Label for this phenotype run (default: 'phenotype')")
     p.add_argument("--unfreeze-encoder", action="store_true",
                    help="Unfreeze pretrained encoder weights for full fine-tuning; default is frozen")
     p.add_argument("--epochs", type=int, default=20)
@@ -298,35 +426,20 @@ def maybe_init_wandb(
 # Single phenotype run
 # ---------------------------------------------------------------------------
 
-def _phenotype_seed(base_seed: int, phenotype_kind: str) -> int:
-    return base_seed + list(PHENOTYPE_KINDS).index(phenotype_kind)
-
-
 def run_single_phenotype(
     args: argparse.Namespace,
     checkpoint: Dict,
     geno_tokens: torch.Tensor,
     snp_ids: torch.Tensor,
+    phenotypes: torch.Tensor,
     split_indices: Dict[str, torch.Tensor],
     phenotype_kind: str,
     device: torch.device,
-    precomputed_phenotypes: Optional[Dict[str, torch.Tensor]] = None,
 ) -> Dict:
     mode = "tuned" if args.unfreeze_encoder else "frozen"
     run_name = f"{phenotype_kind}-{mode}-seed{args.seed}"
     run_dir = args.save_dir / run_name
     run_dir.mkdir(parents=True, exist_ok=True)
-
-    if precomputed_phenotypes is not None:
-        phenotypes = precomputed_phenotypes[phenotype_kind]
-    else:
-        dosages, _ = impute_missing_dosages(geno_tokens)
-        phenotypes = generate_synthetic_phenotype(
-            dosages=dosages,
-            kind=phenotype_kind,
-            seed=_phenotype_seed(args.seed, phenotype_kind),
-        )
-        phenotypes = binarize_phenotype(phenotypes)
 
     train_loader, val_loader, test_loader = build_phenotype_loaders(
         geno_tokens=geno_tokens,
@@ -516,28 +629,18 @@ def main() -> None:
     if "model_state" not in checkpoint:
         raise ValueError("Checkpoint does not contain a model_state entry.")
 
-    # Auto-detect phenotype kind from prefix suffix, e.g. NewSyn_linear → "linear"
-    if args.phenotype_kind is None:
-        _stem = args.plink_prefix.stem
-        for _k in PHENOTYPE_KINDS:
-            if _stem.endswith(f"_{_k}"):
-                args.phenotype_kind = _k
-                print(f"Auto-detected phenotype kind from prefix: {_k}")
-                break
+    # Load phenotype from .fam column 6
+    phenotypes = load_fam_phenotype(args.plink_prefix)
+    if phenotypes is None:
+        raise ValueError(
+            f"No phenotype found in {args.plink_prefix.with_suffix('.fam')}. "
+            "Column 6 must contain valid case/control codes (1=control, 2=case)."
+        )
+    print(f"Loaded phenotype from {args.plink_prefix.with_suffix('.fam')}")
 
-    # Load phenotype from .fam column 6 if it contains valid values
-    precomputed_phenotypes: Optional[Dict[str, torch.Tensor]] = None
-    _fam_pheno = load_fam_phenotype(args.plink_prefix)
-    if _fam_pheno is not None:
-        kinds = [args.phenotype_kind] if args.phenotype_kind else list(PHENOTYPE_KINDS)
-        precomputed_phenotypes = {k: _fam_pheno for k in kinds}
-        print(f"Loaded phenotype from {args.plink_prefix.with_suffix('.fam')}")
-
+    phenotype_kind = args.phenotype_kind or "phenotype"
     print(f"Device: {device}")
     args.save_dir.mkdir(parents=True, exist_ok=True)
-    phenotype_kinds = (
-        [args.phenotype_kind] if args.phenotype_kind is not None else list(PHENOTYPE_KINDS)
-    )
 
     if args.subject_sizes is not None:
         # ------------------------------------------------------------------
@@ -565,19 +668,18 @@ def main() -> None:
                 f"val={split_indices['val'].numel()}  "
                 f"test={split_indices['test'].numel()}"
             )
-            for kind in phenotype_kinds:
-                result = run_single_phenotype(
-                    args=args,
-                    checkpoint=checkpoint,
-                    geno_tokens=geno_tokens,
-                    snp_ids=snp_ids,
-                    split_indices=split_indices,
-                    phenotype_kind=kind,
-                    device=device,
-                    precomputed_phenotypes=precomputed_phenotypes,
-                )
-                result["subject_size"] = size
-                all_results.append(result)
+            result = run_single_phenotype(
+                args=args,
+                checkpoint=checkpoint,
+                geno_tokens=geno_tokens,
+                snp_ids=snp_ids,
+                phenotypes=phenotypes,
+                split_indices=split_indices,
+                phenotype_kind=phenotype_kind,
+                device=device,
+            )
+            result["subject_size"] = size
+            all_results.append(result)
 
         print("\nSweep summary:")
         for row in all_results:
@@ -607,19 +709,17 @@ def main() -> None:
             f"test={split_indices['test'].numel()}"
         )
 
-        results = [
-            run_single_phenotype(
-                args=args,
-                checkpoint=checkpoint,
-                geno_tokens=geno_tokens,
-                snp_ids=snp_ids,
-                split_indices=split_indices,
-                phenotype_kind=kind,
-                device=device,
-                precomputed_phenotypes=precomputed_phenotypes,
-            )
-            for kind in phenotype_kinds
-        ]
+        result = run_single_phenotype(
+            args=args,
+            checkpoint=checkpoint,
+            geno_tokens=geno_tokens,
+            snp_ids=snp_ids,
+            phenotypes=phenotypes,
+            split_indices=split_indices,
+            phenotype_kind=phenotype_kind,
+            device=device,
+        )
+        results = [result]
 
         results_path = args.results_csv or args.save_dir / f"phenotype_summary_seed{args.seed}.csv"
         with results_path.open("w", newline="") as f:

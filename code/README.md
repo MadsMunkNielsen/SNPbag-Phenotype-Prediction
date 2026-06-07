@@ -14,16 +14,6 @@
 - [Python Package — `SNPbag/`](#python-package--snpbag)
 - [R Analysis Scripts](#r-analysis-scripts)
 - [Generated Plots — `Plots/`](#generated-plots--plots)
-- [Server Setup Guide](#server-setup-guide)
-  - [1. Environment](#1-environment)
-  - [2. Python Dependencies](#2-python-dependencies)
-  - [3. R Dependencies](#3-r-dependencies)
-  - [4. External Tools](#4-external-tools)
-  - [5. Data Preparation](#5-data-preparation)
-  - [6. Pretraining](#6-pretraining)
-  - [7. Fine-Tuning](#7-fine-tuning)
-  - [8. Evaluation](#8-evaluation)
-  - [9. Full Pipeline](#9-full-pipeline)
 - [Running Tests](#running-tests)
 - [Checkpoint Layout](#checkpoint-layout)
 
@@ -38,7 +28,6 @@ The key architectural choices are:
 | Design decision | Detail |
 |---|---|
 | Input representation | Genotype token embeddings fused with learned per-SNP identity embeddings |
-| Attention mechanism | Sliding-window local attention — O(L × w) instead of O(L²) |
 | Pretraining objective | Masked genotype reconstruction (mask probability 0.85) |
 | Downstream task | Binary phenotype classification (ROC/AUC) |
 | Baseline comparator | LDpred2-auto (Gibbs-sampler polygenic risk score) |
@@ -54,7 +43,6 @@ code/
 ├── SNPbag/                        # Python package (model, data, training)
 │   ├── model.py
 │   ├── dataset.py
-│   ├── phenotype.py
 │   ├── train_pretrain.py
 │   ├── finetune_phenotype.py
 │   ├── eval_test.py
@@ -95,7 +83,6 @@ Defines all PyTorch neural-network components.
 | Class / function | Role |
 |---|---|
 | `GenoSnpEmbedding` | Combines dosage token embeddings with learned SNP-identity embeddings (replaces sinusoidal positional encoding, since genomic loci have no meaningful order beyond linkage) |
-| `SlidingWindowEncoderLayer` | Transformer encoder layer using local sliding-window attention for linear-time scaling with sequence length |
 | `AttentionEncoderLayer` | Standard multi-head self-attention layer with optional per-head weight capture (used for analysis) |
 | `Encoder` | Full stack of encoder layers |
 | `MLPDecoder` | MLP head for masked-token reconstruction |
@@ -119,23 +106,6 @@ Handles all PLINK genomic data loading and tokenisation.
 | `MaskedGenotypeDataset` | PyTorch `Dataset` that randomly masks genotypes at pretraining time |
 | `NUM_GENO_TOKENS = 5` | Vocabulary size for the input embedding (0, 1, 2, missing, mask) |
 | `NUM_GENOTYPE_CLASSES = 3` | Output classes for the decoder (dosage 0 / 1 / 2) |
-
----
-
-### `phenotype.py`
-
-Phenotype generation, data splitting, and evaluation metrics.
-
-| Symbol | Role |
-|---|---|
-| `generate_synthetic_phenotype()` | Generates continuous phenotypes under three architectures: **linear**, **interaction** (pairwise SNP products), **nonlinear** (squared + sinusoidal) |
-| `PhenotypeDataset` | PyTorch `Dataset` wrapping genotype tensors and phenotype labels |
-| `impute_missing_dosages()` | Imputes missing genotypes using per-SNP column means |
-| `split_individuals()` | Deterministic train / validation / test split |
-| `build_phenotype_loaders()` | Returns `DataLoader` triplet ready for fine-tuning |
-| `classification_metrics()` | Computes accuracy and AUC using `sklearn.metrics.roc_auc_score` |
-| `binarize_phenotype()` | Thresholds a continuous phenotype at zero for binary classification |
-| `standardize_tensor()` | Z-score standardisation |
 
 ---
 
@@ -169,10 +139,11 @@ python SNPbag/train_pretrain.py \
 | `--max-snps` | all | Truncate to first N SNPs |
 | `--max-individuals` | all | Subsample to N individuals |
 | `--mask-prob` | `0.85` | Fraction of tokens masked per sample |
+| `--warmup-epochs` | `2` | Linear LR warmup duration |
 | `--d-model` | `512` | Transformer hidden dimension |
 | `--n-layers` | `16` | Number of encoder layers |
 | `--n-heads` | `16` | Attention heads |
-| `--window-size` | `256` | Sliding-window half-width |
+| `--window-size` | `256` | Local attention window size (`None` = full attention) |
 | `--epochs` | `20` | Training epochs |
 | `--batch-size` | `16` | Batch size |
 
@@ -180,9 +151,9 @@ python SNPbag/train_pretrain.py \
 
 ### `finetune_phenotype.py`
 
-CLI script for fine-tuning the pretrained encoder on a labelled phenotype.
+CLI script for fine-tuning the pretrained encoder on a labelled phenotype. Also houses shared data-pipeline utilities used by `eval_test.py` and the test suite.
 
-**What it does:** loads a pretrained checkpoint, attaches a classification head, and fine-tunes with binary cross-entropy. Optionally freezes the encoder (transfer learning) or unfreezes it end-to-end. Generates ROC curve data and a summary CSV.
+**What it does:** reads the binary case/control phenotype from column 6 of the PLINK `.fam` file (as written by `simulate_pheno_cpbayes.R`), attaches a classification head to the pretrained encoder, and fine-tunes with binary cross-entropy. Optionally freezes the encoder (transfer learning) or unfreezes it end-to-end. Saves the best checkpoint, a per-epoch history CSV, and a predictions CSV for downstream ROC analysis.
 
 ```bash
 python SNPbag/finetune_phenotype.py \
@@ -199,11 +170,26 @@ python SNPbag/finetune_phenotype.py \
 | Key argument | Default | Description |
 |---|---|---|
 | `--pretrained-checkpoint` | required | Path to `.pt` pretrain checkpoint |
-| `--phenotype-kind` | `None` | `linear`, `interaction`, or `nonlinear` |
+| `--plink-prefix` | `Data/NewSyn` | Path without extension |
+| `--phenotype-kind` | `"phenotype"` | Label used in checkpoint directory and output filenames |
 | `--unfreeze-encoder` | off | Fine-tune encoder weights as well |
 | `--encoder-lr` | `1e-5` | Learning rate for encoder |
 | `--head-lr` | `1e-4` | Learning rate for classification head |
+| `--max-snps` | all | Truncate to first N SNPs |
+| `--subject-sizes` | — | Sweep over these training-set sizes (space-separated) |
+| `--analysis-dir` | `checkpoints/analysis` | Output directory for sweep summary CSVs |
 | `--use-wandb` | off | Log metrics to Weights & Biases |
+
+**Utility functions (also importable):**
+
+| Symbol | Role |
+|---|---|
+| `PhenotypeDataset` | PyTorch `Dataset` wrapping genotype tensors and phenotype labels |
+| `impute_missing_dosages()` | Imputes missing genotypes using per-SNP column means |
+| `split_individuals()` | Deterministic train / validation / test split |
+| `build_phenotype_loaders()` | Returns `DataLoader` triplet ready for fine-tuning |
+| `classification_metrics()` | Computes accuracy and AUC using `sklearn.metrics.roc_auc_score` |
+| `regression_metrics()` | Computes MSE and R² |
 
 ---
 
@@ -358,219 +344,6 @@ bash run_pipeline.sh
 
 ---
 
-## Server Setup Guide
-
-The following steps assume a Linux server with SLURM or direct shell access and a GPU node.
-
----
-
-### 1. Environment
-
-```bash
-git clone <repo-url> speciale && cd speciale/code
-
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
----
-
-### 2. Python Dependencies
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-For GPU servers, install PyTorch with the matching CUDA wheel first:
-
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-pip install -r requirements.txt
-```
-
-> Replace `cu121` with your server's CUDA version (`nvidia-smi` shows it).
-> For CPU-only nodes use `--index-url https://download.pytorch.org/whl/cpu`.
-
-Verify:
-
-```bash
-python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
-```
-
----
-
-### 3. R Dependencies
-
-```r
-install.packages(c("bigstatsr", "bigsnpr", "bigreadr", "dplyr", "ggplot2", "pROC"))
-```
-
-If `bigsnpr` cannot find PLINK2 automatically, set the path in the R scripts:
-
-```r
-options(bigsnpr.plink2.path = "/path/to/plink2")
-```
-
----
-
-### 4. External Tools
-
-**PLINK2** is required for GWAS and data extraction steps.
-
-```bash
-# Download PLINK2 (Linux x86_64)
-wget https://s3.amazonaws.com/plink2-assets/alpha6/plink2_linux_x86_64_20250104.zip
-unzip plink2_linux_x86_64_20250104.zip -d /usr/local/bin/
-chmod +x /usr/local/bin/plink2
-plink2 --version
-```
-
----
-
-### 5. Data Preparation
-
-Place PLINK binary filesets (`.bed`, `.bim`, `.fam`) at:
-
-```
-SNPbag/Data/
-├── NewSyn_100k_cpbayes.bed
-├── NewSyn_100k_cpbayes.bim
-└── NewSyn_100k_cpbayes.fam
-```
-
-> The data files are not tracked in this repository (≈2.7 GB).
-> Contact the author for access or regenerate them using the simulation scripts.
-
-If using a different path, update `PLINK_PREFIX` in `run_pipeline.sh` and pass `--plink-prefix` explicitly to the Python scripts.
-
----
-
-### 6. Pretraining
-
-Pretraining is the most GPU-intensive step. A full run on 100 k individuals and 14 k SNPs takes roughly 6–12 hours on a single A100.
-
-```bash
-cd code
-
-python SNPbag/train_pretrain.py \
-  --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-  --max-snps 14000 \
-  --max-individuals 100000 \
-  --d-model 512 \
-  --n-layers 16 \
-  --n-heads 16 \
-  --d-ff 2048 \
-  --window-size 256 \
-  --mask-prob 0.85 \
-  --epochs 50 \
-  --batch-size 32 \
-  --lr 1e-4 \
-  --warmup-epochs 5 \
-  --seed 42 \
-  --num-workers 4 \
-  --save-dir SNPbag/checkpoints/pretrain \
-  --save-prefix snpbag_n100k_snps14k
-```
-
-The best checkpoint is saved to:
-
-```
-SNPbag/checkpoints/pretrain/snpbag_n100k_snps14k_best.pt
-```
-
-Training history (epoch, val_loss, accuracy) is written to a companion `*_history.csv`.
-
-**SLURM example:**
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=snpbag-pretrain
-#SBATCH --gres=gpu:a100:1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
-#SBATCH --time=12:00:00
-#SBATCH --output=logs/pretrain_%j.out
-
-source .venv/bin/activate
-
-python SNPbag/train_pretrain.py \
-  --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-  --max-snps 14000 \
-  --max-individuals 100000 \
-  --epochs 50 \
-  --batch-size 32 \
-  --num-workers 4 \
-  --save-dir SNPbag/checkpoints/pretrain
-```
-
----
-
-### 7. Fine-Tuning
-
-Fine-tuning is much faster (typically < 1 hour per run).
-
-```bash
-python SNPbag/finetune_phenotype.py \
-  --pretrained-checkpoint SNPbag/checkpoints/pretrain/snpbag_n100k_snps14k_best.pt \
-  --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-  --phenotype-kind linear \
-  --max-snps 14000 \
-  --epochs 30 \
-  --batch-size 32 \
-  --encoder-lr 1e-5 \
-  --head-lr 1e-4 \
-  --seed 42 \
-  --num-workers 4 \
-  --save-dir SNPbag/checkpoints/finetune_cpbayes
-```
-
-To run all three phenotype architectures in parallel:
-
-```bash
-for kind in linear interaction nonlinear; do
-  python SNPbag/finetune_phenotype.py \
-    --pretrained-checkpoint SNPbag/checkpoints/pretrain/snpbag_n100k_snps14k_best.pt \
-    --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-    --phenotype-kind $kind \
-    --max-snps 14000 \
-    --epochs 30 \
-    --save-dir SNPbag/checkpoints/finetune_cpbayes/$kind &
-done
-wait
-```
-
----
-
-### 8. Evaluation
-
-After fine-tuning, evaluate on the held-out test split:
-
-```bash
-# R evaluation — generates Plots/ROC_SNPbag.png
-Rscript PlotRocAuc_SNPbag.R
-
-# Run LDpred2 pipeline and compare
-Rscript LDPRED2.R
-Rscript PlotComparison.R
-```
-
----
-
-### 9. Full Pipeline
-
-To reproduce the complete experiment from scratch:
-
-```bash
-# From the code/ directory
-source .venv/bin/activate
-bash run_pipeline.sh
-```
-
-This runs all steps end-to-end: phenotype simulation → GWAS → LDpred2 → SNPbag fine-tune → comparison figures.
-
----
-
 ## Running Tests
 
 ```bash
@@ -579,7 +352,7 @@ This runs all steps end-to-end: phenotype simulation → GWAS → LDpred2 → SN
 .venv/bin/pytest -v    # verbose
 ```
 
-Tests use small synthetic tensors and do not require PLINK files or a GPU. They cover the model forward pass, dataset tokenisation, phenotype utilities, and visualization helpers (58 tests total).
+Tests use small synthetic tensors and do not require PLINK files or a GPU. They cover the model forward pass, dataset tokenisation, phenotype utilities, and visualization helpers.
 
 ---
 
@@ -588,24 +361,19 @@ Tests use small synthetic tensors and do not require PLINK files or a GPU. They 
 ```
 SNPbag/checkpoints/
 ├── pretrain/
-│   ├── snpbag_n1000_snps14000_seed42_best.pt
-│   ├── snpbag_n1000_snps14000_seed42_history.csv
-│   ├── snpbag_n5000_snps14000_seed42_best.pt
-│   ├── snpbag_n5000_snps14000_seed42_history.csv
-│   ├── snpbag_n10000_snps14000_seed42_best.pt
-│   ├── snpbag_n10000_snps14000_seed42_history.csv
-│   ├── snpbag_n50000_snps14000_seed42_best.pt
-│   ├── snpbag_n50000_snps14000_seed42_history.csv
-│   ├── snpbag_n100000_snps14000_seed42_best.pt
-│   └── snpbag_n100000_snps14000_seed42_history.csv
+│   ├── {prefix}_n{N}_snps{S}_seed{seed}_best.pt
+│   └── {prefix}_n{N}_snps{S}_seed{seed}_history.csv
 ├── finetune_cpbayes/
-│   └── linear-frozen-seed42/
-│       └── best.pt
+│   └── {phenotype-kind}-{frozen|tuned}-seed{seed}/
+│       ├── best.pt
+│       ├── history.csv
+│       └── predictions.csv
 └── analysis/
-    └── subject_size_summary.csv
+    ├── subject_size_summary.csv
+    └── roc_curves.csv
 ```
 
-Each `*_best.pt` file contains the full model state dict saved at the epoch with the lowest validation loss. The companion `*_history.csv` records epoch-level `val_loss` and reconstruction accuracy, used by `PlotPreTrain.R`.
+Checkpoint names are generated automatically from `--save-prefix`, individual count, SNP count, and seed. Each `*_best.pt` contains the model state dict saved at the lowest validation loss. The companion `*_history.csv` records epoch-level metrics, used by `PlotPreTrain.R`.
 
 ---
 

@@ -49,8 +49,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--plink-prefix", type=Path, default=default_prefix)
     p.add_argument("--mask-prob", type=float, default=0.85,
                    help="Fraction of observed genotypes to mask per sample")
-    p.add_argument("--bag-size", type=int, default=None,
-                   help="SNPs sampled per individual per step (None = full sequence)")
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--epochs", type=int, default=20)
     p.add_argument("--lr", type=float, default=1e-4)
@@ -140,7 +138,6 @@ def build_loaders(
     geno_tokens: torch.Tensor,
     snp_ids: torch.Tensor,
     mask_prob: float,
-    bag_size: Optional[int],
     val_fraction: float,
     batch_size: int,
     num_workers: int,
@@ -157,7 +154,7 @@ def build_loaders(
 
     train_ds = MaskedGenotypeDataset(
         geno_tokens, snp_ids,
-        mask_prob=mask_prob, bag_size=bag_size,
+        mask_prob=mask_prob,
         indices=train_indices,
     )
     train_loader = DataLoader(
@@ -169,7 +166,7 @@ def build_loaders(
         val_gen = torch.Generator().manual_seed(seed + 1)
         val_ds = MaskedGenotypeDataset(
             geno_tokens, snp_ids,
-            mask_prob=mask_prob, bag_size=bag_size,
+            mask_prob=mask_prob,
             indices=val_indices, generator=val_gen,
         )
         val_loader = DataLoader(
@@ -265,7 +262,6 @@ def make_checkpoint(
             "num_snps": n_snps,
             "num_tokens": NUM_GENO_TOKENS,
             "mask_prob": args.mask_prob,
-            "bag_size": args.bag_size,
             "seed": args.seed,
             "d_model": args.d_model,
             "n_layers": args.n_layers,
@@ -303,7 +299,6 @@ def run_single_pretrain(
     train_loader, val_loader = build_loaders(
         geno_tokens, snp_ids,
         mask_prob=args.mask_prob,
-        bag_size=args.bag_size,
         val_fraction=args.val_fraction,
         batch_size=args.batch_size,
         num_workers=args.num_workers,

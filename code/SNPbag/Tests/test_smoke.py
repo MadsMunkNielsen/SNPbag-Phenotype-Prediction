@@ -33,16 +33,13 @@ from model import (
     extract_encoder_state_dict,
     load_pretrained_encoder,
 )
-from phenotype import (
+from finetune_phenotype import (
     PhenotypeDataset,
-    binarize_phenotype,
     build_phenotype_loaders,
     classification_metrics,
-    generate_synthetic_phenotype,
     impute_missing_dosages,
     regression_metrics,
     split_individuals,
-    standardize_tensor,
 )
 
 
@@ -501,59 +498,6 @@ def test_impute_missing_replaces_missing_token():
     assert dosages[0, 1] == pytest.approx(1.0)
     # Column 2: one observed value (2), one missing → imputed to 2.0
     assert dosages[1, 2] == pytest.approx(2.0)
-
-
-# ---------------------------------------------------------------------------
-# standardize_tensor
-# ---------------------------------------------------------------------------
-
-def test_standardize_tensor():
-    x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
-    z = standardize_tensor(x)
-    assert z.mean().abs().item() < 1e-5
-    assert abs(z.std(unbiased=False).item() - 1.0) < 1e-5
-
-
-# ---------------------------------------------------------------------------
-# generate_synthetic_phenotype
-# ---------------------------------------------------------------------------
-
-def test_synthetic_phenotype_determinism():
-    geno = _geno(b=30, l=50)
-    dosages, _ = impute_missing_dosages(geno)
-
-    for kind in ("linear", "interaction", "nonlinear"):
-        p1 = generate_synthetic_phenotype(dosages, kind, seed=42)
-        p2 = generate_synthetic_phenotype(dosages, kind, seed=42)
-        assert torch.allclose(p1, p2), f"Phenotype '{kind}' is not deterministic."
-        p3 = generate_synthetic_phenotype(dosages, kind, seed=99)
-        assert not torch.allclose(p1, p3), f"Phenotype '{kind}' is the same for different seeds."
-
-
-def test_synthetic_phenotype_standardised():
-    geno = _geno(b=100, l=50)
-    dosages, _ = impute_missing_dosages(geno)
-    y = generate_synthetic_phenotype(dosages, "linear", seed=0)
-    assert abs(float(y.mean())) < 0.1, "Phenotype mean is not near 0."
-    assert 0.8 < float(y.std()) < 1.2, "Phenotype std is not near 1."
-
-
-def test_synthetic_phenotype_invalid_kind():
-    geno = _geno(b=10, l=20)
-    dosages, _ = impute_missing_dosages(geno)
-    with pytest.raises(ValueError, match="Unsupported phenotype kind"):
-        generate_synthetic_phenotype(dosages, "bad_kind", seed=0)
-
-
-# ---------------------------------------------------------------------------
-# binarize_phenotype
-# ---------------------------------------------------------------------------
-
-def test_binarize_phenotype():
-    y = torch.tensor([-1.0, 0.5, 0.0, -0.1])
-    binary = binarize_phenotype(y)
-    expected = torch.tensor([0.0, 1.0, 0.0, 0.0])
-    assert torch.equal(binary, expected)
 
 
 # ---------------------------------------------------------------------------

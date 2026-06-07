@@ -19,9 +19,6 @@
   - [Overview](#overview)
   - [Python Package — `SNPbag/`](#python-package--snpbag)
   - [R Analysis Scripts](#r-analysis-scripts)
-  - [Server Setup Guide](#server-setup-guide)
-  - [Running Tests](#running-tests)
-  - [Checkpoint Layout](#checkpoint-layout)
 
 ---
 
@@ -104,7 +101,6 @@ SNPbag is a transformer encoder pretrained with **masked genotype modeling** (an
 | Design decision | Detail |
 |---|---|
 | Input representation | Genotype token embeddings fused with learned per-SNP identity embeddings |
-| Attention mechanism | Sliding-window local attention — O(L × w) instead of O(L²) |
 | Pretraining objective | Masked genotype reconstruction (mask probability 0.85) |
 | Downstream task | Binary phenotype classification (ROC/AUC) |
 | Baseline comparator | LDpred2-auto (Gibbs-sampler polygenic risk score) |
@@ -122,7 +118,6 @@ Defines all PyTorch neural-network components.
 | Class / function | Role |
 |---|---|
 | `GenoSnpEmbedding` | Combines dosage token embeddings with learned SNP-identity embeddings (replaces sinusoidal positional encoding) |
-| `SlidingWindowEncoderLayer` | Transformer encoder layer using local sliding-window attention for linear-time scaling with sequence length |
 | `AttentionEncoderLayer` | Standard multi-head self-attention layer with optional per-head weight capture |
 | `Encoder` | Full stack of encoder layers |
 | `MLPDecoder` | MLP head for masked-token reconstruction |
@@ -213,184 +208,6 @@ Unit smoke tests covering all core modules. Uses tiny synthetic tensors — no P
 | `PlotComparison.R` | Side-by-side LDpred2 vs SNPbag ROC comparison |
 
 `run_pipeline.sh` orchestrates the full experiment: phenotype simulation → GWAS → LDpred2 → SNPbag fine-tune → comparison plots.
-
----
-
-### Server Setup Guide
-
-#### 1. Environment
-
-```bash
-git clone <repo-url> speciale && cd speciale/code
-
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-#### 2. Python Dependencies
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-For GPU servers, replace the `torch` line with a CUDA-specific wheel:
-
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu121
-pip install -r requirements.txt --no-deps torch
-```
-
-> Replace `cu121` with your server's CUDA version (`nvidia-smi` shows it).
-
-#### 3. R Dependencies
-
-```r
-install.packages(c("bigstatsr", "bigsnpr", "bigreadr", "dplyr", "ggplot2", "pROC"))
-```
-
-#### 4. External Tools
-
-**PLINK2** is required for GWAS and data extraction steps.
-
-```bash
-wget https://s3.amazonaws.com/plink2-assets/alpha6/plink2_linux_x86_64_20250104.zip
-unzip plink2_linux_x86_64_20250104.zip -d /usr/local/bin/
-chmod +x /usr/local/bin/plink2
-```
-
-#### 5. Data Preparation
-
-Place PLINK binary filesets (`.bed`, `.bim`, `.fam`) at:
-
-```
-code/SNPbag/Data/
-├── NewSyn_100k_cpbayes.bed
-├── NewSyn_100k_cpbayes.bim
-└── NewSyn_100k_cpbayes.fam
-```
-
-> The data files are not included in this repository due to their size (≈2.7 GB).
-> Contact the author for access or regenerate them using the simulation scripts.
-
-#### 6. Pretraining
-
-```bash
-cd code
-
-python SNPbag/train_pretrain.py \
-  --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-  --max-snps 14000 \
-  --max-individuals 100000 \
-  --d-model 512 --n-layers 16 --n-heads 16 --d-ff 2048 \
-  --window-size 256 --mask-prob 0.85 \
-  --epochs 50 --batch-size 32 --lr 1e-4 --warmup-epochs 5 \
-  --seed 42 --num-workers 4 \
-  --save-dir SNPbag/checkpoints/pretrain \
-  --save-prefix snpbag_n100k_snps14k
-```
-
-**SLURM example:**
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=snpbag-pretrain
-#SBATCH --gres=gpu:a100:1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
-#SBATCH --time=12:00:00
-#SBATCH --output=logs/pretrain_%j.out
-
-source .venv/bin/activate
-
-python SNPbag/train_pretrain.py \
-  --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-  --max-snps 14000 --max-individuals 100000 \
-  --epochs 50 --batch-size 32 --num-workers 4 \
-  --save-dir SNPbag/checkpoints/pretrain
-```
-
-#### 7. Fine-Tuning
-
-```bash
-python SNPbag/finetune_phenotype.py \
-  --pretrained-checkpoint SNPbag/checkpoints/pretrain/snpbag_n100k_snps14k_best.pt \
-  --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-  --phenotype-kind linear \
-  --max-snps 14000 --epochs 30 --batch-size 32 \
-  --encoder-lr 1e-5 --head-lr 1e-4 --seed 42 --num-workers 4 \
-  --save-dir SNPbag/checkpoints/finetune_cpbayes
-```
-
-To run all three phenotype architectures in parallel:
-
-```bash
-for kind in linear interaction nonlinear; do
-  python SNPbag/finetune_phenotype.py \
-    --pretrained-checkpoint SNPbag/checkpoints/pretrain/snpbag_n100k_snps14k_best.pt \
-    --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
-    --phenotype-kind $kind --max-snps 14000 --epochs 30 \
-    --save-dir SNPbag/checkpoints/finetune_cpbayes/$kind &
-done
-wait
-```
-
-#### 8. Evaluation
-
-```bash
-# R evaluation — generates Plots/ROC_SNPbag.png
-Rscript PlotRocAuc_SNPbag.R
-
-# Run LDpred2 pipeline
-Rscript LDPRED2.R
-
-# Side-by-side comparison figure
-Rscript PlotComparison.R
-```
-
-#### 9. Full Pipeline
-
-```bash
-# From the code/ directory, with .venv active
-source .venv/bin/activate
-bash run_pipeline.sh
-```
-
----
-
-### Running Tests
-
-```bash
-cd code
-.venv/bin/pytest          # runs all 58 tests via pytest.ini
-.venv/bin/pytest -v       # verbose output
-```
-
-Tests use small synthetic tensors and do not require PLINK files or a GPU.
-
----
-
-### Checkpoint Layout
-
-```
-SNPbag/checkpoints/
-├── pretrain/
-│   ├── snpbag_n1000_snps14000_seed42_best.pt
-│   ├── snpbag_n1000_snps14000_seed42_history.csv
-│   ├── snpbag_n5000_snps14000_seed42_best.pt
-│   ├── snpbag_n5000_snps14000_seed42_history.csv
-│   ├── snpbag_n10000_snps14000_seed42_best.pt
-│   ├── snpbag_n10000_snps14000_seed42_history.csv
-│   ├── snpbag_n50000_snps14000_seed42_best.pt
-│   ├── snpbag_n50000_snps14000_seed42_history.csv
-│   ├── snpbag_n100000_snps14000_seed42_best.pt
-│   └── snpbag_n100000_snps14000_seed42_history.csv
-├── finetune_cpbayes/
-│   └── linear-frozen-seed42/
-│       └── best.pt
-└── analysis/
-    └── subject_size_summary.csv
-```
 
 ---
 
