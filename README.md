@@ -138,20 +138,6 @@ Handles all PLINK genomic data loading and tokenisation.
 | `encode_snp_ids()` | Assigns stable 0-based integer IDs to SNPs |
 | `MaskedGenotypeDataset` | PyTorch `Dataset` that randomly masks genotypes at pretraining time |
 
-#### `phenotype.py`
-
-Phenotype generation, data splitting, and evaluation metrics.
-
-| Symbol | Role |
-|---|---|
-| `generate_synthetic_phenotype()` | Generates phenotypes under three architectures: **linear**, **interaction**, **nonlinear** |
-| `PhenotypeDataset` | PyTorch `Dataset` wrapping genotype tensors and phenotype labels |
-| `split_individuals()` | Deterministic train / validation / test split |
-| `build_phenotype_loaders()` | Returns `DataLoader` triplet ready for fine-tuning |
-| `classification_metrics()` | Computes accuracy and AUC |
-| `regression_metrics()` | Computes MSE and R² |
-| `binarize_phenotype()` | Thresholds continuous phenotype at zero for binary classification |
-
 #### `train_pretrain.py`
 
 CLI script for pretraining SNPbag on unlabelled genotype data. Saves best checkpoint and per-epoch history CSV.
@@ -167,11 +153,11 @@ python SNPbag/train_pretrain.py \
 
 #### `finetune_phenotype.py`
 
-Fine-tunes the pretrained encoder for phenotype prediction. Supports frozen/unfrozen encoder and optional W&B logging.
+Fine-tunes the pretrained encoder for phenotype prediction. Reads the binary case/control phenotype from column 6 of the PLINK `.fam` file. Supports frozen/unfrozen encoder, subject-size sweeps, and optional W&B logging. Also houses shared data-pipeline utilities (`PhenotypeDataset`, `split_individuals`, `classification_metrics`, etc.) used by `eval_test.py` and the test suite.
 
 ```bash
 python SNPbag/finetune_phenotype.py \
-  --pretrained-checkpoint SNPbag/checkpoints/pretrain/snpbag_n100000_snps14000_seed42_best.pt \
+  --pretrained-checkpoint SNPbag/checkpoints/pretrain/snpbag_best.pt \
   --plink-prefix SNPbag/Data/NewSyn_100k_cpbayes \
   --phenotype-kind linear \
   --epochs 30 \
