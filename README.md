@@ -197,4 +197,4 @@ Unit smoke tests covering all core modules. Uses tiny synthetic tensors — no P
 
 ---
 
-*SNPbag · Master's Thesis · Aalborg University · 2026*
+*Adapting SNPbag for Phenotype Prediction: A Transformer-Based Approach to Polygenic Risk · Master's Thesis · Aalborg University · 2026*
